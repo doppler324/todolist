@@ -217,6 +217,19 @@ public partial class DrawerWindow : Window
         if (((FrameworkElement)sender).DataContext is TaskVM t) OpenEditor(t);
     }
 
+    private void OnExit(object sender, RoutedEventArgs e)
+    {
+        _dialogOpen = true;
+        MessageBoxResult r;
+        try
+        {
+            r = MessageBox.Show(this, "Закрыть TodoDock?\nПока программа закрыта, уведомления не показываются и не уходят в Telegram.",
+                "Выход", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        }
+        finally { _dialogOpen = false; Activate(); }
+        if (r == MessageBoxResult.Yes) Application.Current.Shutdown();
+    }
+
     private void OnSettings(object sender, RoutedEventArgs e) => OpenSettings();
 
     public void OpenSettings()
