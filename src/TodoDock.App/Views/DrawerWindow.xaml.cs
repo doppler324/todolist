@@ -36,17 +36,49 @@ public partial class DrawerWindow : Window
         Height = area.Height;
         Left = area.Right;                       // за краем экрана
         SourceInitialized += (_, _) => NativeMethods.ApplyWin11Style(this, mica: false);
+        _outsideTimer.Tick += (_, _) => CheckOutsideClick();
     }
 
     public bool IsOpen => _shown;
     public event Action<bool>? OpenChanged;
 
-    public void Toggle() { if (_shown) Close_(); else Open(); }
+    /// <summary>Окна, клик по которым не считается «кликом мимо» (ручка, карточки уведомлений).</summary>
+    public Func<IEnumerable<Window>> KeepOpenWindows { get; set; } = () => Array.Empty<Window>();
+
+    private readonly System.Windows.Threading.DispatcherTimer _outsideTimer = new() { Interval = TimeSpan.FromMilliseconds(40) };
+    private bool _wasDown;
+
+    /// <summary>
+    /// Закрывает панель при клике мимо. Одного Deactivated мало: Windows не всегда отдаёт панели
+    /// фокус при открытии (особенно когда на экране висят окна уведомлений), и тогда она «не замечает» клика снаружи.
+    /// </summary>
+    private void CheckOutsideClick()
+    {
+        var down = NativeMethods.IsMouseButtonDown();
+        var pressed = down && !_wasDown;
+        _wasDown = down;
+        if (!pressed || !_shown || PinButton.IsChecked == true || _dialogOpen) return;
+
+        var cur = NativeMethods.CursorPosition();
+        if (NativeMethods.ScreenRect(this).Contains(cur)) return;
+        if (KeepOpenWindows().Any(w => NativeMethods.ScreenRect(w).Contains(cur))) return;
+        Close_();
+    }
+
+    private DateTime _closedAt;
+
+    public void Toggle()
+    {
+        if (_shown) Close_();
+        else if (DateTime.UtcNow - _closedAt > TimeSpan.FromMilliseconds(300)) Open();   // клик в трее сначала закрыл панель по «клику мимо»
+    }
 
     public void Open()
     {
         if (_shown) return;
         _shown = true;
+        _wasDown = true;               // клик, открывший панель, не должен её же закрыть
+        _outsideTimer.Start();
         OpenChanged?.Invoke(true);
         Visibility = Visibility.Visible;
         Activate();
@@ -60,6 +92,8 @@ public partial class DrawerWindow : Window
     {
         if (!_shown) return;
         _shown = false;
+        _closedAt = DateTime.UtcNow;
+        _outsideTimer.Stop();
         OpenChanged?.Invoke(false);
         var right = SystemParameters.WorkArea.Right;
         var anim = new DoubleAnimation(right, TimeSpan.FromMilliseconds(160))

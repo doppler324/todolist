@@ -40,6 +40,7 @@ public partial class App : Application
 
         _stack = new NotificationStackWindow(_notifications);
         _drawer.OpenChanged += _stack.SetDrawerOpen;
+        _drawer.KeepOpenWindows = () => new System.Windows.Window?[] { _handle, _stack }.Where(w => w != null)!;
         _notifications.Active.CollectionChanged += (_, _) => _handle.SetBadge(_notifications.Active.Count);
         vm.Changed += _notifications.Refresh;
         _notifications.Refresh();   // сразу показать пропущенные и сохранённые с прошлого запуска

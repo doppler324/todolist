@@ -14,6 +14,24 @@ internal static class NativeMethods
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr h, int i, int v);
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr h, int attr, ref int v, int size);
 
+    [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
+    [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINT p);
+    [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X, Y; }
+
+    /// <summary>Нажата ли сейчас левая или правая кнопка мыши (где бы ни был курсор).</summary>
+    public static bool IsMouseButtonDown() => (GetAsyncKeyState(0x01) & 0x8000) != 0 || (GetAsyncKeyState(0x02) & 0x8000) != 0;
+
+    public static Point CursorPosition() { GetCursorPos(out var p); return new Point(p.X, p.Y); }
+
+    /// <summary>Прямоугольник окна в экранных пикселях (пустой, если окно скрыто).</summary>
+    public static Rect ScreenRect(Window w)
+    {
+        if (!w.IsVisible || w.ActualWidth == 0) return Rect.Empty;
+        var tl = w.PointToScreen(new Point(0, 0));
+        var br = w.PointToScreen(new Point(w.ActualWidth, w.ActualHeight));
+        return new Rect(tl, br);
+    }
+
     [DllImport("shell32.dll")] private static extern int SHQueryUserNotificationState(out int state);
 
     /// <summary>Полноэкранное приложение/игра/презентация — всплывающие окна лучше не показывать.</summary>
