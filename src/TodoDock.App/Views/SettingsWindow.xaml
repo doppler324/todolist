@@ -40,6 +40,18 @@
             <Button Content="Отправить тестовое сообщение" Style="{StaticResource SecondaryButton}" Margin="0,14,0,0" HorizontalAlignment="Left" Click="OnTest"/>
             <TextBlock x:Name="TestStatus" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}"/>
 
+            <Border Margin="0,16,0,0" Padding="12,10" CornerRadius="8" Background="{StaticResource CardBrush}">
+                <StackPanel>
+                    <TextBlock Text="Очередь отправки" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="QueueStatus" Margin="0,4,0,0" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource MutedBrush}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Отправить сейчас" Style="{StaticResource ChipButton}" Click="OnFlush"/>
+                        <Button Content="Повторить неудачные" Style="{StaticResource ChipButton}" Click="OnRetryFailed"/>
+                        <Button Content="Открыть журнал" Style="{StaticResource ChipButton}" Click="OnOpenLog"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
                 <Button Content="Отмена" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" IsCancel="True" Click="OnCancel"/>
                 <Button Content="Сохранить" Style="{StaticResource PrimaryButton}" IsDefault="True" Click="OnSave"/>

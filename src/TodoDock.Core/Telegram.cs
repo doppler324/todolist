@@ -110,6 +110,7 @@ public sealed class TelegramSettings
 public sealed class TelegramOutboxProcessor
 {
     public const int MaxAttempts = 10;
+    public Action<string>? Log { get; set; }
     private readonly TodoRepository _repo;
     private readonly TelegramClient _client;
     private readonly TelegramSettings _settings;
@@ -129,7 +130,8 @@ public sealed class TelegramOutboxProcessor
         foreach (var item in _repo.GetDueOutbox(now))
         {
             var res = await _client.SendAsync(token, chat.Value, item.Text, ct);
-            if (res.Ok) { _repo.MarkOutboxSent(item.Id, now); sent++; continue; }
+            if (res.Ok) { _repo.MarkOutboxSent(item.Id, now); sent++; Log?.Invoke($"отправлено #{item.Id}"); continue; }
+            Log?.Invoke($"ошибка #{item.Id} (попытка {item.Attempts + 1}, {(res.Retryable ? "повтор" : "окончательно")}): {res.Error}");
 
             var attempts = item.Attempts + 1;
             if (!res.Retryable || attempts >= MaxAttempts) _repo.MarkOutboxFailed(item.Id, res.Error);

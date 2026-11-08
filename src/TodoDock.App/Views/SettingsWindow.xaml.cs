@@ -18,6 +18,7 @@ public partial class SettingsWindow : Window
         _chatId = tg.Settings.ChatId;
         if (!string.IsNullOrEmpty(tg.Settings.Token)) TokenStatus.Text = "Токен сохранён. Чтобы заменить — вставьте новый.";
         ShowChat();
+        RefreshQueue();
     }
 
     // Пустое поле = оставить сохранённый токен.
@@ -28,6 +29,26 @@ public partial class SettingsWindow : Window
 
     private void Say(System.Windows.Controls.TextBlock t, string msg, bool ok)
     { t.Text = msg; t.Foreground = (Brush)FindResource(ok ? "OkBrush" : "ErrorBrush"); }
+
+    private void RefreshQueue()
+    {
+        var st = _tg.Stats;
+        var state = _tg.Settings.IsReady ? "включена" : "ВЫКЛЮЧЕНА (нужны галочка, токен и чат — после правок нажмите «Сохранить»)";
+        QueueStatus.Text = $"Отправка: {state}\nОжидают: {st.Pending} · доставлено: {st.Sent} · не доставлено: {st.Failed}"
+                           + (st.LastError != null ? $"\nПоследняя ошибка: {st.LastError}" : "");
+    }
+
+    private async void OnFlush(object sender, RoutedEventArgs e) { await _tg.KickAsync(); RefreshQueue(); }
+    private async void OnRetryFailed(object sender, RoutedEventArgs e) { _tg.RequeueFailed(); await _tg.KickAsync(); RefreshQueue(); }
+    private void OnOpenLog(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!System.IO.File.Exists(TelegramService.LogPath)) TelegramService.Log("журнал создан");
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(TelegramService.LogPath) { UseShellExecute = true });
+        }
+        catch (Exception ex) { Say(TestStatus, "Не удалось открыть журнал: " + ex.Message, false); }
+    }
 
     private void OnDrag(object sender, System.Windows.Input.MouseButtonEventArgs e)
     { if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed) DragMove(); }

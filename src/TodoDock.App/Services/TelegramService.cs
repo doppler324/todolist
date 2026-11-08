@@ -22,17 +22,28 @@ public sealed class TelegramService : IDisposable
         _repo = repo;
         Settings = new TelegramSettings(repo, Protect, Unprotect);
         Client = new TelegramClient(new HttpClient { Timeout = TimeSpan.FromSeconds(20) });
-        _processor = new TelegramOutboxProcessor(repo, Client, Settings);
+        _processor = new TelegramOutboxProcessor(repo, Client, Settings) { Log = Log };
         _timer.Tick += async (_, _) => await KickAsync();
         _timer.Start();
     }
 
     public void Enqueue(IEnumerable<AppNotification> fresh)
     {
-        if (!Settings.IsReady) return;
+        var list = fresh.ToList();
+        if (list.Count == 0) return;
+        if (!Settings.IsReady)
+        {
+            Log($"уведомлений: {list.Count}, но Telegram не готов (включён: {Settings.Enabled}, токен: {!string.IsNullOrEmpty(Settings.Token)}, чат: {Settings.ChatId != null}) — не отправлено");
+            return;
+        }
         var any = false;
-        foreach (var n in fresh.Where(n => n.SendTelegram))
-        { _repo.EnqueueTelegram(TelegramFormat.Notification(n), n.Id, DateTime.Now); any = true; }
+        foreach (var n in list)
+        {
+            if (!n.SendTelegram) { Log($"«{n.Title}»: у задачи выключено «Дублировать в Telegram»"); continue; }
+            _repo.EnqueueTelegram(TelegramFormat.Notification(n), n.Id, DateTime.Now);
+            Log($"«{n.Title}»: поставлено в очередь");
+            any = true;
+        }
         if (any) _ = KickAsync();
     }
 
@@ -41,9 +52,28 @@ public sealed class TelegramService : IDisposable
         if (_busy || !Settings.IsReady) return;
         _busy = true;
         try { await _processor.ProcessAsync(DateTime.Now); }
-        catch { /* очередь повторит позже */ }
+        catch (Exception ex) { Log("сбой отправки: " + ex.Message); /* очередь повторит позже */ }
         finally { _busy = false; }
     }
+
+    public static string LogPath => System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TodoDock", "logs", "telegram.log");
+
+    /// <summary>Журнал отправки (без токена). Нужен, чтобы понять, почему сообщение не дошло.</summary>
+    public static void Log(string message)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(LogPath)!);
+            var info = new System.IO.FileInfo(LogPath);
+            if (info.Exists && info.Length > 512 * 1024) info.Delete();
+            System.IO.File.AppendAllText(LogPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}{Environment.NewLine}");
+        }
+        catch { /* журнал не должен ломать приложение */ }
+    }
+
+    public TodoRepository.OutboxStats Stats => _repo.GetOutboxStats();
+    public int RequeueFailed() => _repo.RequeueFailed(DateTime.Now);
 
     // DPAPI: токен можно расшифровать только под этой учётной записью Windows.
     private static string Protect(string s) =>

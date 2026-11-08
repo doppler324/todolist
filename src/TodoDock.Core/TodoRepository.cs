@@ -322,6 +322,24 @@ VALUES($f,$t,$p,$d,$r,(SELECT IFNULL(MAX(sort_order),0)+1 FROM tasks),$c); SELEC
         c.Parameters.AddWithValue("$e", (object?)error ?? DBNull.Value); c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery();
     }
 
+    public sealed record OutboxStats(int Pending, int Failed, int Sent, string? LastError);
+
+    public OutboxStats GetOutboxStats()
+    {
+        int Count(string st) { using var c = Cmd("SELECT COUNT(*) FROM telegram_outbox WHERE status=$s"); c.Parameters.AddWithValue("$s", st); return (int)(long)c.ExecuteScalar()!; }
+        string? err;
+        using (var c = Cmd("SELECT last_error FROM telegram_outbox WHERE last_error IS NOT NULL ORDER BY id DESC LIMIT 1")) err = c.ExecuteScalar() as string;
+        return new OutboxStats(Count("pending"), Count("failed"), Count("sent"), err);
+    }
+
+    /// <summary>Возвращает неудачные сообщения в очередь для новой попытки.</summary>
+    public int RequeueFailed(DateTime now)
+    {
+        using var c = Cmd("UPDATE telegram_outbox SET status='pending',attempts=0,next_try_at=$d WHERE status='failed'");
+        c.Parameters.AddWithValue("$d", Iso(now));
+        return c.ExecuteNonQuery();
+    }
+
     public string? GetOutboxStatus(long id)
     {
         using var c = Cmd("SELECT status FROM telegram_outbox WHERE id=$i"); c.Parameters.AddWithValue("$i", id);
