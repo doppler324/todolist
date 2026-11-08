@@ -7,11 +7,14 @@ internal sealed class TrayService : IDisposable
 {
     private readonly NotifyIcon _icon;
 
-    public TrayService(Action toggle, Action openSettings, Action exit)
+    public TrayService(Action toggle, Action openSettings, Action exit, bool widgetEnabled, Action<bool> setWidget)
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add("Открыть / скрыть панель", null, (_, _) => toggle());
         menu.Items.Add("Настройки (Telegram)…", null, (_, _) => openSettings());
+        var widget = new ToolStripMenuItem("Окно задач на рабочем столе") { Checked = widgetEnabled, CheckOnClick = true };
+        widget.CheckedChanged += (_, _) => setWidget(widget.Checked);
+        menu.Items.Add(widget);
         var auto = new ToolStripMenuItem("Запускать при входе в Windows") { Checked = Autostart.IsEnabled, CheckOnClick = true };
         auto.CheckedChanged += (_, _) => Autostart.Set(auto.Checked);
         menu.Items.Add(auto);

@@ -21,7 +21,6 @@ public sealed partial class TaskVM : ObservableObject
     partial void OnIsDoneChanged(bool value) { if (value && !Item.IsDone) _main.CompleteTask(this); }
 
     public bool IsOverdue => Item.DueAt is { } d && d < DateTime.Now && !IsDone;
-    public string PriorityColor => Item.Priority switch { Priority.High => "#FF4D5E", Priority.Low => "#6B7280", _ => "#00000000" };
 
     public string Subtitle
     {
@@ -34,6 +33,7 @@ public sealed partial class TaskVM : ObservableObject
                 parts.Add($"🔔 {day} {d:HH:mm}");
             }
             if (RepeatRule.Parse(Item.RepeatRule) is { } r) parts.Add("🔁 " + r.Describe());
+            if (Item.Reminders.Count > 0) parts.Add($"⏰ +{Item.Reminders.Count}");
             return string.Join("  ", parts);
         }
     }

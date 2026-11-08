@@ -13,6 +13,8 @@ public sealed partial class MainViewModel : ObservableObject
     public ObservableCollection<FolderVM> Folders { get; } = new();
     /// <summary>Вкладка «Сегодня»: открытые задачи со сроком на сегодня или просроченные.</summary>
     public ObservableCollection<TaskVM> TodayTasks { get; } = new();
+    /// <summary>Папки с галочкой «показывать на рабочем столе» — для окна на рабочем столе.</summary>
+    public ObservableCollection<FolderVM> WidgetFolders { get; } = new();
     [ObservableProperty] private string _quickText = "";
     [ObservableProperty] private string _newFolderName = "";
 
@@ -26,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject
         var expanded = Folders.ToDictionary(f => f.Id ?? -1, f => f.IsExpanded);
         Folders.Clear();
         TodayTasks.Clear();
+        WidgetFolders.Clear();
         var tasks = _repo.GetTasks();
         var all = new List<FolderVM> { new(null, this) };
         all.AddRange(_repo.GetFolders().Select(f => new FolderVM(f, this)));
@@ -36,6 +39,7 @@ public sealed partial class MainViewModel : ObservableObject
             // «Без папки» показываем только когда в ней что-то есть
             if (f.IsReal || f.Count > 0) Folders.Add(f);
         }
+        foreach (var f in Folders.Where(f => f.ShowOnDesktop)) WidgetFolders.Add(f);
         foreach (var t in Folders.SelectMany(f => f.Tasks)
                      .Where(t => t.Item.DueAt is { } d && d.Date <= DateTime.Today)
                      .OrderBy(t => t.Item.DueAt))
@@ -73,6 +77,16 @@ public sealed partial class MainViewModel : ObservableObject
         _repo.DeleteFolder(f.Folder.Id, deleteTasks);
         Reload();
     }
+
+    public void SetFolderOnDesktop(FolderVM f, bool show)
+    {
+        if (f.Folder == null) return;
+        _repo.SetFolderShowOnDesktop(f.Folder.Id, show);
+        Reload();
+    }
+
+    public string? GetSetting(string key) => _repo.GetSetting(key);
+    public void SetSetting(string key, string? value) => _repo.SetSetting(key, value);
 
     public void RenameFolder(long id, string name) => _repo.RenameFolder(id, name);
     public void SaveTask(TaskItem t) => _repo.UpdateTask(t);

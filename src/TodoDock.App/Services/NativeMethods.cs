@@ -32,6 +32,34 @@ internal static class NativeMethods
         return new Rect(tl, br);
     }
 
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWPOS { public IntPtr hwnd, hwndInsertAfter; public int x, y, cx, cy; public uint flags; }
+
+    private static readonly IntPtr HWND_BOTTOM = new(1);
+    private const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
+
+    /// <summary>Держит окно под всеми остальными окнами (поверх рабочего стола) — в том числе после кликов по нему.</summary>
+    public static void KeepAtBottom(Window w)
+    {
+        var handle = new WindowInteropHelper(w).Handle;
+        HwndSource.FromHwnd(handle)?.AddHook((IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled) =>
+        {
+            if (msg == 0x0046) // WM_WINDOWPOSCHANGING
+            {
+                var pos = Marshal.PtrToStructure<WINDOWPOS>(lParam);
+                pos.hwndInsertAfter = HWND_BOTTOM;
+                pos.flags &= ~SWP_NOZORDER;
+                Marshal.StructureToPtr(pos, lParam, false);
+            }
+            return IntPtr.Zero;
+        });
+        SendToBottom(w);
+    }
+
+    public static void SendToBottom(Window w) =>
+        SetWindowPos(new WindowInteropHelper(w).Handle, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
     [DllImport("shell32.dll")] private static extern int SHQueryUserNotificationState(out int state);
 
     /// <summary>Полноэкранное приложение/игра/презентация — всплывающие окна лучше не показывать.</summary>

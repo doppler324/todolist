@@ -365,3 +365,39 @@ public class ReminderAndWidgetTests
         Assert.True(r.GetFolders().Single().ShowOnDesktop);
     }
 }
+
+public class InputFormatTests
+{
+    // Эмулируем набор по одной цифре: после каждой цифры текст форматируется и подаётся обратно.
+    private static string TypeTime(string digits)
+    {
+        var text = "";
+        foreach (var d in digits) text = InputFormat.FormatTime(new string((text + d).Where(char.IsDigit).ToArray()), true, false);
+        return text;
+    }
+    private static string TypeDate(string digits)
+    {
+        var text = "";
+        foreach (var d in digits) text = InputFormat.FormatDate(new string((text + d).Where(char.IsDigit).ToArray()), true, false);
+        return text;
+    }
+
+    [Theory]
+    [InlineData("1610", "16:10")]
+    [InlineData("0905", "09:05")]
+    [InlineData("930", "9:30")]
+    [InlineData("16", "16:")]
+    [InlineData("2", "2")]
+    [InlineData("1675", "16:07")]
+    public void Time_gets_colon_while_typing(string typed, string expected) => Assert.Equal(expected, TypeTime(typed));
+
+    [Theory]
+    [InlineData("08122026", "08.12.2026")]
+    [InlineData("5", "05.")]
+    [InlineData("0812", "08.12.")]
+    [InlineData("812", "08.12.")]
+    public void Date_gets_dots_while_typing(string typed, string expected) => Assert.Equal(expected, TypeDate(typed));
+
+    [Fact] public void Time_final_form_is_padded() => Assert.Equal("09:50", InputFormat.FormatTime("95", false, true));
+    [Fact] public void Deleting_does_not_re_add_colon() => Assert.Equal("16", InputFormat.FormatTime("16", false, false));
+}

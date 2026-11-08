@@ -16,6 +16,7 @@ public partial class App : Application
     private NotificationService? _notifications;
     private TelegramService? _telegram;
     private NotificationStackWindow? _stack;
+    private DesktopWidgetWindow? _widget;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -48,7 +49,9 @@ public partial class App : Application
         vm.Changed += _notifications.Refresh;
         _notifications.Refresh();   // сразу показать пропущенные и сохранённые с прошлого запуска
 
-        _tray = new TrayService(_drawer.Toggle, () => { _drawer.Open(); _drawer.OpenSettings(); }, Shutdown);
+        _widget = new DesktopWidgetWindow(vm);
+        _tray = new TrayService(_drawer.Toggle, () => { _drawer.Open(); _drawer.OpenSettings(); }, Shutdown,
+            _widget.IsEnabledByUser, on => _widget.SetEnabled(on));
         SingleInstance.Listen(() => Dispatcher.Invoke(_drawer.Open));
     }
 

@@ -167,6 +167,11 @@ public partial class DrawerWindow : Window
         _vm.DeleteFolder(f, deleteTasks);
     }
 
+    private void OnToggleDesktopMenu(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is FolderVM { IsReal: true } f) _vm.SetFolderOnDesktop(f, !f.ShowOnDesktop);
+    }
+
     private bool _suppressUp;
 
     private void OnFolderDown(object sender, MouseButtonEventArgs e)

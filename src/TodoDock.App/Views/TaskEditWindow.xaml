@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
-        Width="440" SizeToContent="Height" WindowStartupLocation="CenterScreen" Topmost="True"
+        Width="460" SizeToContent="Height" WindowStartupLocation="CenterScreen" Topmost="True"
         Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI" FontSize="13">
     <Window.Resources>
         <Style x:Key="CalDay" TargetType="Button">
@@ -19,71 +19,99 @@
     </Window.Resources>
     <Border Margin="14" CornerRadius="12" Background="#FF202229" BorderBrush="#22FFFFFF" BorderThickness="1">
         <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.5"/></Border.Effect>
-        <StackPanel Margin="20,14,20,18">
-            <DockPanel MouseLeftButtonDown="OnDrag" Background="Transparent">
+        <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+            <DockPanel Margin="20,14,20,0" MouseLeftButtonDown="OnDrag" Background="Transparent">
                 <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource GhostButton}" Click="OnCancel" ToolTip="Закрыть"/>
                 <TextBlock Text="Изменить задачу" FontSize="16" FontWeight="SemiBold"/>
             </DockPanel>
 
-            <TextBlock Text="Название" Foreground="{StaticResource MutedBrush}" Margin="0,14,0,4"/>
-            <TextBox x:Name="TitleBox" Style="{StaticResource FlatBox}" Padding="10,8" FontSize="14"/>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="620" Margin="0,0,6,0">
+                <StackPanel Margin="20,0,14,0">
+                    <TextBlock Text="Название" Foreground="{StaticResource MutedBrush}" Margin="0,14,0,4"/>
+                    <TextBox x:Name="TitleBox" Style="{StaticResource FlatBox}" Padding="10,8" FontSize="14"/>
 
-            <TextBlock Text="Заметка" Foreground="{StaticResource MutedBrush}" Margin="0,12,0,4"/>
-            <TextBox x:Name="NoteBox" Style="{StaticResource FlatBox}" Padding="10,8" Height="64"
-                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                    <TextBlock Text="Заметка" Foreground="{StaticResource MutedBrush}" Margin="0,12,0,4"/>
+                    <TextBox x:Name="NoteBox" Style="{StaticResource FlatBox}" Padding="10,8" Height="56"
+                             AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
 
-            <TextBlock Text="Папка" Foreground="{StaticResource MutedBrush}" Margin="0,12,0,6"/>
-            <WrapPanel x:Name="FolderPanel"/>
+                    <TextBlock Text="Папка" Foreground="{StaticResource MutedBrush}" Margin="0,12,0,6"/>
+                    <WrapPanel x:Name="FolderPanel"/>
 
-            <TextBlock Text="Приоритет" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,6"/>
-            <WrapPanel x:Name="PriorityPanel"/>
+                    <TextBlock Text="Срок — в это время сработает напоминание" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,6"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition Width="84"/></Grid.ColumnDefinitions>
+                        <Grid>
+                            <TextBox x:Name="DueDate" Style="{StaticResource FlatBox}" Padding="10,8,40,8"/>
+                            <TextBlock x:Name="DatePlaceholder" Style="{StaticResource PlaceholderText}" Text="дд.мм.гггг"/>
+                            <Button x:Name="DueCalBtn" Content="📅" HorizontalAlignment="Right" Margin="0,0,4,2" Padding="6,2" FontSize="16"
+                                    Style="{StaticResource GhostButton}" ToolTip="Выбрать дату в календаре" Click="OnOpenCalendar"/>
+                            <Popup x:Name="CalPopup" PlacementTarget="{Binding ElementName=DueDate}" Placement="Bottom" VerticalOffset="6"
+                                   StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Margin="10" Padding="12" Width="268" CornerRadius="12" Background="#FF2A2D36" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                    <Border.Effect><DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.5"/></Border.Effect>
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,8">
+                                            <Button DockPanel.Dock="Left" Content="‹" FontSize="20" Padding="10,0" Style="{StaticResource GhostButton}" Click="OnPrevMonth"/>
+                                            <Button DockPanel.Dock="Right" Content="›" FontSize="20" Padding="10,0" Style="{StaticResource GhostButton}" Click="OnNextMonth"/>
+                                            <TextBlock x:Name="CalTitle" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                        </DockPanel>
+                                        <UniformGrid x:Name="CalWeekdays" Columns="7" Margin="0,0,0,2"/>
+                                        <UniformGrid x:Name="CalDays" Columns="7"/>
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <TextBox x:Name="DueTime" Grid.Column="2" Style="{StaticResource FlatBox}" Padding="10,8" Text="09:00" ToolTip="ЧЧ:ММ — двоеточие ставится само" HorizontalContentAlignment="Center"/>
+                    </Grid>
+                    <WrapPanel Margin="0,8,0,0">
+                        <Button Content="Сегодня" Style="{StaticResource ChipButton}" Click="OnToday"/>
+                        <Button Content="Завтра" Style="{StaticResource ChipButton}" Click="OnTomorrow"/>
+                        <Button Content="Через неделю" Style="{StaticResource ChipButton}" Click="OnWeek"/>
+                        <Button Content="Без срока" Style="{StaticResource ChipButton}" Click="OnClearDue"/>
+                    </WrapPanel>
 
-            <TextBlock Text="Срок — в это время сработает напоминание" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,6"/>
-            <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition Width="84"/></Grid.ColumnDefinitions>
-                <Grid>
-                    <TextBox x:Name="DueDate" Style="{StaticResource FlatBox}" Padding="10,8,40,8" x:FieldModifier="private"/>
-                    <TextBlock Style="{StaticResource PlaceholderText}" Text="дд.мм.гггг" IsHitTestVisible="False" x:Name="DatePlaceholder"/>
-                    <Button Content="📅" HorizontalAlignment="Right" Margin="0,0,4,2" Padding="6,2" FontSize="16"
-                            Style="{StaticResource GhostButton}" ToolTip="Выбрать дату в календаре" Click="OnOpenCalendar"/>
-                    <Popup x:Name="CalPopup" PlacementTarget="{Binding ElementName=DueDate}" Placement="Bottom" VerticalOffset="6"
-                           StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
-                        <Border Margin="10" Padding="12" Width="268" CornerRadius="12" Background="#FF2A2D36" BorderBrush="#33FFFFFF" BorderThickness="1">
-                            <Border.Effect><DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.5"/></Border.Effect>
-                            <StackPanel>
-                                <DockPanel Margin="0,0,0,8">
-                                    <Button DockPanel.Dock="Left" Content="‹" FontSize="20" Padding="10,0" Style="{StaticResource GhostButton}" Click="OnPrevMonth"/>
-                                    <Button DockPanel.Dock="Right" Content="›" FontSize="20" Padding="10,0" Style="{StaticResource GhostButton}" Click="OnNextMonth"/>
-                                    <TextBlock x:Name="CalTitle" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                                </DockPanel>
-                                <UniformGrid x:Name="CalWeekdays" Columns="7" Margin="0,0,0,2"/>
-                                <UniformGrid x:Name="CalDays" Columns="7"/>
-                            </StackPanel>
-                        </Border>
-                    </Popup>
-                </Grid>
-                <TextBox x:Name="DueTime" Grid.Column="2" Style="{StaticResource FlatBox}" Padding="10,8" Text="09:00" ToolTip="ЧЧ:ММ" HorizontalContentAlignment="Center"/>
-            </Grid>
-            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                <Button Content="Сегодня" Style="{StaticResource ChipButton}" Click="OnToday"/>
-                <Button Content="Завтра" Style="{StaticResource ChipButton}" Click="OnTomorrow"/>
-                <Button Content="Через неделю" Style="{StaticResource ChipButton}" Click="OnWeek"/>
-                <Button Content="Без срока" Style="{StaticResource ChipButton}" Click="OnClearDue"/>
-            </StackPanel>
+                    <TextBlock Text="Повтор" Foreground="{StaticResource MutedBrush}" Margin="0,14,0,6"/>
+                    <WrapPanel x:Name="RepeatPanel"/>
+                    <WrapPanel x:Name="WeekdaysPanel" Visibility="Collapsed" Margin="0,2,0,0"/>
+                    <Grid x:Name="MonthDaysGrid" Visibility="Collapsed" Margin="0,2,0,0">
+                        <TextBox x:Name="MonthDaysBox" Style="{StaticResource FlatBox}" Padding="10,8"/>
+                        <TextBlock Style="{StaticResource PlaceholderText}" Text="Числа месяца через запятую, например: 5, 15, 25">
+                            <TextBlock.Visibility><Binding ElementName="MonthDaysBox" Path="Text" Converter="{StaticResource EmptyToVisible}"/></TextBlock.Visibility>
+                        </TextBlock>
+                    </Grid>
 
-            <TextBlock Text="Повтор" Foreground="{StaticResource MutedBrush}" Margin="0,12,0,6"/>
-            <WrapPanel x:Name="RepeatPanel"/>
+                    <TextBlock Text="Дополнительные напоминания" Foreground="{StaticResource MutedBrush}" Margin="0,14,0,2"/>
+                    <TextBlock Text="Разовые уведомления в любое время — например, за день до срока. Сбрасываются, когда задача выполнена."
+                               Foreground="#7F8794" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                    <WrapPanel x:Name="RemindersPanel"/>
+                    <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="84"/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Grid>
+                            <TextBox x:Name="RemDate" Style="{StaticResource FlatBox}" Padding="10,8,40,8"/>
+                            <TextBlock Style="{StaticResource PlaceholderText}" Text="дд.мм.гггг">
+                                <TextBlock.Visibility><Binding ElementName="RemDate" Path="Text" Converter="{StaticResource EmptyToVisible}"/></TextBlock.Visibility>
+                            </TextBlock>
+                            <Button Content="📅" HorizontalAlignment="Right" Margin="0,0,4,2" Padding="6,2" FontSize="16"
+                                    Style="{StaticResource GhostButton}" ToolTip="Выбрать дату" Click="OnOpenRemCalendar"/>
+                        </Grid>
+                        <TextBox x:Name="RemTime" Grid.Column="2" Style="{StaticResource FlatBox}" Padding="10,8" Text="09:00" HorizontalContentAlignment="Center"/>
+                        <Button Grid.Column="4" Content="＋ Добавить" Style="{StaticResource SecondaryButton}" Click="OnAddReminder"/>
+                    </Grid>
 
-            <CheckBox x:Name="TgBox" Margin="0,6,0,0" HorizontalAlignment="Left">
-                <TextBlock Text="Дублировать в Telegram" Margin="8,0,0,0" VerticalAlignment="Center"/>
-            </CheckBox>
+                    <CheckBox x:Name="TgBox" Margin="0,14,0,0" HorizontalAlignment="Left">
+                        <TextBlock Text="Дублировать в Telegram" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </CheckBox>
 
-            <TextBlock x:Name="Error" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+                    <TextBlock x:Name="Error" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+                </StackPanel>
+            </ScrollViewer>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="20,12,20,18">
                 <Button Content="Отмена" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" IsCancel="True" Click="OnCancel"/>
                 <Button Content="Сохранить" Style="{StaticResource PrimaryButton}" IsDefault="True" Click="OnSave"/>
             </StackPanel>
-        </StackPanel>
+        </Grid>
     </Border>
 </Window>

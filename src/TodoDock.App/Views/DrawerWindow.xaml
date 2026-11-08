@@ -19,7 +19,6 @@
                                                 </ContextMenu>
                                             </Border.ContextMenu>
                                             <DockPanel>
-                                                <Border DockPanel.Dock="Left" Width="4" CornerRadius="8,0,0,8" Background="{Binding PriorityColor}"/>
                                                 <Button x:Name="DelBtn" DockPanel.Dock="Right" Content="✕" Style="{StaticResource GhostButton}" Visibility="Collapsed"
                                                         VerticalAlignment="Top" Margin="0,6,8,0" ToolTip="Удалить задачу" Click="OnDeleteTaskMenu"/>
                                                 <CheckBox IsChecked="{Binding IsDone}" VerticalAlignment="Center" Margin="10,0,8,0"/>
@@ -65,10 +64,10 @@
         <Grid Grid.Row="1" Margin="0,12,4,10">
             <TextBox x:Name="QuickAdd" FontSize="14" Style="{StaticResource FlatBox}" Padding="12,10"
                      Text="{Binding QuickText, UpdateSourceTrigger=PropertyChanged}"
-                     ToolTip="Пример: Купить хлеб #Дом !высокий @завтра 18:00 *ежедневно">
+                     ToolTip="Пример: Купить хлеб #Дом @завтра 18:00 *ежедневно">
                 <TextBox.InputBindings><KeyBinding Key="Return" Command="{Binding AddTaskCommand}"/></TextBox.InputBindings>
             </TextBox>
-            <TextBlock Style="{StaticResource PlaceholderText}" Text="Новая задача…  #папка !высокий @завтра 18:00">
+            <TextBlock Style="{StaticResource PlaceholderText}" Text="Новая задача…  #папка @завтра 18:00">
                                 <TextBlock.Visibility><Binding Path="QuickText" Converter="{StaticResource EmptyToVisible}"/></TextBlock.Visibility>
             </TextBlock>
         </Grid>
@@ -91,6 +90,7 @@
                                     <Border.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Переименовать" Click="OnRenameFolderMenu"/>
+                                            <MenuItem Header="{Binding DesktopMenuHeader}" Click="OnToggleDesktopMenu"/>
                                             <MenuItem Header="Удалить папку" Click="OnDeleteFolderMenu"/>
                                         </ContextMenu>
                                     </Border.ContextMenu>
@@ -102,6 +102,7 @@
                                             </Style></TextBlock.Style>
                                         </TextBlock>
                                         <TextBlock Text="{Binding Icon}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="🖥" DockPanel.Dock="Right" Margin="6,0,0,0" FontSize="11" VerticalAlignment="Center" ToolTip="Задачи показываются на рабочем столе" Visibility="{Binding ShowOnDesktop, Converter={StaticResource B2V}}"/>
                                         <TextBlock Text="{Binding Count}" DockPanel.Dock="Right" Foreground="{StaticResource MutedBrush}" FontSize="12" VerticalAlignment="Center"/>
                                         <!-- Название папки: обычный текст; при переименовании тот же элемент становится полем ввода -->
                                         <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"

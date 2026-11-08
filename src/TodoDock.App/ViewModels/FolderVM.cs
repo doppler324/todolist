@@ -27,6 +27,10 @@ public sealed partial class FolderVM : ObservableObject
 
     public int Count => Tasks.Count;
 
+    /// <summary>Показывать задачи папки в окне на рабочем столе.</summary>
+    public bool ShowOnDesktop => Folder?.ShowOnDesktop == true;
+    public string DesktopMenuHeader => ShowOnDesktop ? "✓ На рабочем столе (убрать)" : "Показывать на рабочем столе";
+
     public void CommitEdit()
     {
         IsEditing = false;
