@@ -1,0 +1,33 @@
+using System.Windows;
+using System.Windows.Media.Animation;
+using System.Windows.Input;
+using TodoDock.Services;
+
+namespace TodoDock.Views;
+
+public partial class HandleWindow : Window
+{
+    private readonly DrawerWindow _drawer;
+
+    public HandleWindow(DrawerWindow drawer)
+    {
+        _drawer = drawer;
+        InitializeComponent();
+        var area = SystemParameters.WorkArea;
+        Left = area.Right - Width;
+        Top = area.Top + (area.Height - Height) / 2;
+        SourceInitialized += (_, _) => NativeMethods.MakeToolNoActivate(this);
+    }
+
+    private void OnClick(object sender, MouseButtonEventArgs e) => _drawer.Toggle();
+
+    private void OnEnter(object sender, MouseEventArgs e) => Animate(24, 1);
+    private void OnLeave(object sender, MouseEventArgs e) => Animate(8, 0);
+
+    private void Animate(double width, double chevron)
+    {
+        var d = new Duration(TimeSpan.FromMilliseconds(150));
+        Pill.BeginAnimation(WidthProperty, new DoubleAnimation(width, d));
+        Chevron.BeginAnimation(OpacityProperty, new DoubleAnimation(chevron, d));
+    }
+}
