@@ -121,7 +121,7 @@
 ```
 folders(id, name, color, icon, sort_order, created_at)
 tasks(id, folder_id NULL, title, note, priority, status[open|done],
-      due_at NULL, sort_order, created_at, completed_at NULL)
+      due_at NULL, repeat_rule NULL, sort_order, created_at, completed_at NULL)
 reminders(id, task_id, fire_at, repeat_rule NULL, send_telegram, status[pending|fired|cancelled])
 notifications(id, task_id NULL, reminder_id NULL, title, body, created_at,
               status[active|snoozed|dismissed], snooze_until NULL)
@@ -166,10 +166,15 @@ TodoDock.Tests      Юнит-тесты (планировщик, парсер б
 4. **M4 — Telegram**: настройки, привязка, outbox с ретраями.
 5. **M5 — Полировка**: темы, Mica, DPI/мониторы, установщик, иконки.
 
-## 11. Открытые вопросы
+## 11. Принятые решения
 
-1. Сторона экрана только справа, или нужна настройка слева/справа?
-2. Нужна ли вложенность папок (папка в папке) или достаточно одного уровня?
-3. Повторяющиеся задачи (ежедневно/еженедельно) — в v1 или позже?
-4. Нужны ли кнопки-ответы в Telegram («Выполнено», «Отложить»), или только исходящие?
-5. Устраивает ли стек .NET/WPF (запуск только на Windows)?
+1. Ручка только справа (настройка стороны — не в v1).
+2. Папки в один уровень (без вложенности).
+3. Повторяющиеся задачи — **в v1**: ежедневно / по дням недели / еженедельно / ежемесячно.
+   Хранится правило `repeat_rule` (RRULE-подмножество); при выполнении задачи
+   создаётся следующее вхождение, напоминание пересчитывается.
+4. Telegram только исходящий (без inline-кнопок и входящего polling, кроме разовой привязки чата).
+5. Стек .NET 8 + WPF, только Windows 11.
+
+Влияние на план: повторения добавлены в M2/M3 (модель `repeat_rule` в `tasks`,
+генерация следующего вхождения в планировщике).
