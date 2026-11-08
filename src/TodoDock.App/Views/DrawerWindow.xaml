@@ -9,17 +9,19 @@
         <BooleanToVisibilityConverter x:Key="B2V"/>
         <local:EmptyToVisibleConverter x:Key="EmptyToVisible"/>
         <DataTemplate x:Key="TaskCard">
-                                        <Border Margin="14,2,0,2" Padding="0" CornerRadius="8" Background="{StaticResource CardBrush}" AllowDrop="True"
+                                        <Border x:Name="Card" Margin="14,2,0,2" Padding="0" CornerRadius="8" Background="{StaticResource CardBrush}" AllowDrop="True"
                                                 PreviewMouseLeftButtonDown="OnTaskMouseDown" PreviewMouseMove="OnTaskMouseMove" Drop="OnDropOnTask"
                                                 MouseLeftButtonUp="OnTaskMouseUp">
                                             <Border.ContextMenu>
                                                 <ContextMenu>
                                                     <MenuItem Header="Изменить…" Click="OnEditMenu"/>
-                                                    <MenuItem Header="Удалить" Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                                    <MenuItem Header="Удалить" Click="OnDeleteTaskMenu"/>
                                                 </ContextMenu>
                                             </Border.ContextMenu>
                                             <DockPanel>
                                                 <Border DockPanel.Dock="Left" Width="4" CornerRadius="8,0,0,8" Background="{Binding PriorityColor}"/>
+                                                <Button x:Name="DelBtn" DockPanel.Dock="Right" Content="✕" Style="{StaticResource GhostButton}" Visibility="Collapsed"
+                                                        VerticalAlignment="Top" Margin="0,6,8,0" ToolTip="Удалить задачу" Click="OnDeleteTaskMenu"/>
                                                 <CheckBox IsChecked="{Binding IsDone}" VerticalAlignment="Center" Margin="10,0,8,0"/>
                                                 <StackPanel Margin="0,8,10,8">
                                                     <TextBlock Text="{Binding Title}" TextWrapping="Wrap" MouseLeftButtonDown="OnTaskTitleClick">
@@ -43,6 +45,11 @@
                                                 </StackPanel>
                                             </DockPanel>
                                         </Border>
+            <DataTemplate.Triggers>
+                <Trigger SourceName="Card" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="DelBtn" Property="Visibility" Value="Visible"/>
+                </Trigger>
+            </DataTemplate.Triggers>
                                     </DataTemplate>
     </Window.Resources>
     <Grid Margin="16,14,12,12">
@@ -83,7 +90,7 @@
                                     <Border.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Переименовать" Click="OnRenameFolderMenu"/>
-                                            <MenuItem Header="Удалить папку" Command="{Binding DataContext.DeleteFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                            <MenuItem Header="Удалить папку" Click="OnDeleteFolderMenu"/>
                                         </ContextMenu>
                                     </Border.ContextMenu>
                                     <DockPanel>

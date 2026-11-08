@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -67,19 +66,11 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand] private void DeleteTask(TaskVM t) { _repo.DeleteTask(t.Item.Id); Reload(); }
     [RelayCommand] private void RenameFolderStart(FolderVM f) => f.IsEditing = f.IsReal;
 
-    [RelayCommand]
-    private void DeleteFolder(FolderVM f)
+    /// <summary>Удаляет папку; подтверждение показывает окно панели (иначе MessageBox прячется под Topmost-панелью).</summary>
+    public void DeleteFolder(FolderVM f, bool deleteTasks)
     {
         if (f.Folder == null) return;
-        bool del = false;
-        if (f.Count > 0)
-        {
-            var r = MessageBox.Show($"В папке «{f.Name}» задач: {f.Count}.\nДа — перенести их в «Без папки».\nНет — удалить вместе с папкой.",
-                "Удаление папки", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-            if (r == MessageBoxResult.Cancel) return;
-            del = r == MessageBoxResult.No;
-        }
-        _repo.DeleteFolder(f.Folder.Id, del);
+        _repo.DeleteFolder(f.Folder.Id, deleteTasks);
         Reload();
     }
 

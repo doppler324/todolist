@@ -108,6 +108,31 @@ public partial class DrawerWindow : Window
         if (((FrameworkElement)sender).DataContext is FolderVM { IsReal: true } f) f.IsEditing = true;
     }
 
+    private void OnDeleteTaskMenu(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is TaskVM t) _vm.DeleteTaskCommand.Execute(t);
+    }
+
+    private void OnDeleteFolderMenu(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is not FolderVM { IsReal: true } f) return;
+        var deleteTasks = false;
+        if (f.Count > 0)
+        {
+            _dialogOpen = true;   // панель не должна прятаться, пока открыт вопрос
+            MessageBoxResult r;
+            try
+            {
+                r = MessageBox.Show(this, $"В папке «{f.Name}» задач: {f.Count}.\n\nДа — перенести их в «Без папки».\nНет — удалить вместе с папкой.",
+                    "Удаление папки", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            }
+            finally { _dialogOpen = false; Activate(); }
+            if (r == MessageBoxResult.Cancel) return;
+            deleteTasks = r == MessageBoxResult.No;
+        }
+        _vm.DeleteFolder(f, deleteTasks);
+    }
+
     private bool _suppressUp;
 
     private void OnFolderDown(object sender, MouseButtonEventArgs e)

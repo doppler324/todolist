@@ -83,6 +83,23 @@ public class RepositoryTests
     }
 
     [Fact]
+    public void Delete_task_and_folder_with_tasks_remove_their_notifications()
+    {
+        using var r = TodoRepository.InMemory();
+        var f = r.AddFolder("F", Now);
+        var a = r.AddTask("a", f.Id, Priority.Normal, Now, null, Now);
+        var b = r.AddTask("b", null, Priority.Normal, Now, null, Now);
+        r.Tick(Now);
+        Assert.Equal(2, r.GetActiveNotifications().Count);
+        r.DeleteTask(b.Id);
+        Assert.Single(r.GetActiveNotifications());
+        r.DeleteFolder(f.Id, deleteTasks: true);
+        Assert.Empty(r.GetActiveNotifications());
+        Assert.Empty(r.GetTasks());
+        Assert.Empty(r.GetFolders());
+    }
+
+    [Fact]
     public void PlaceTasks_reorders_and_moves()
     {
         using var r = TodoRepository.InMemory();

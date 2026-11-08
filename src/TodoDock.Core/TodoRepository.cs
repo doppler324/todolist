@@ -84,7 +84,11 @@ CREATE TABLE IF NOT EXISTS telegram_outbox(
     /// <summary>Удаляет папку; задачи переносятся в «Без папки» либо удаляются.</summary>
     public void DeleteFolder(long id, bool deleteTasks)
     {
-        if (deleteTasks) { using var d = Cmd("DELETE FROM tasks WHERE folder_id=$i"); d.Parameters.AddWithValue("$i", id); d.ExecuteNonQuery(); }
+        if (deleteTasks)
+        {
+            using (var n = Cmd("DELETE FROM notifications WHERE task_id IN (SELECT id FROM tasks WHERE folder_id=$i)")) { n.Parameters.AddWithValue("$i", id); n.ExecuteNonQuery(); }
+            using var d = Cmd("DELETE FROM tasks WHERE folder_id=$i"); d.Parameters.AddWithValue("$i", id); d.ExecuteNonQuery();
+        }
         using var c = Cmd("DELETE FROM folders WHERE id=$i"); c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery();
     }
 
