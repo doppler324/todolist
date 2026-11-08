@@ -27,7 +27,7 @@ public partial class SettingsWindow : Window
         ChatStatus.Text = _chatId is { } id ? $"Чат привязан (id {id})" : "Чат не привязан";
 
     private static void Say(System.Windows.Controls.TextBlock t, string msg, bool ok)
-    { t.Text = msg; t.Foreground = ok ? Brushes.SeaGreen : Brushes.Firebrick; }
+    { t.Text = msg; t.Foreground = ok ? Brushes.MediumSeaGreen : Brushes.LightCoral; }
 
     private async void OnCheck(object sender, RoutedEventArgs e)
     {

@@ -2,11 +2,11 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Настройки — Telegram" Width="460" SizeToContent="Height" ResizeMode="NoResize"
-        WindowStartupLocation="CenterScreen" Topmost="True" Background="#F3F3F3" FontFamily="Segoe UI" FontSize="13">
+        WindowStartupLocation="CenterScreen" Topmost="True" Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI" FontSize="13">
     <StackPanel Margin="18">
         <CheckBox x:Name="EnabledBox" Content="Дублировать уведомления в Telegram" FontWeight="SemiBold"/>
 
-        <TextBlock Margin="0,12,0,0" TextWrapping="Wrap" Foreground="#555">
+        <TextBlock Margin="0,12,0,0" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}">
             1. В Telegram откройте @BotFather → /newbot → скопируйте токен.<LineBreak/>
             2. Вставьте токен ниже и нажмите «Проверить».<LineBreak/>
             3. Откройте своего бота, нажмите Start (или напишите /start).<LineBreak/>
