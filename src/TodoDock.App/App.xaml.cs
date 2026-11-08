@@ -1,5 +1,7 @@
 using System.Windows;
+using TodoDock.Core;
 using TodoDock.Services;
+using TodoDock.ViewModels;
 using TodoDock.Views;
 
 namespace TodoDock;
@@ -7,6 +9,7 @@ namespace TodoDock;
 public partial class App : Application
 {
     private Mutex? _mutex;
+    private TodoRepository? _repo;
     private TrayService? _tray;
     private HandleWindow? _handle;
     private DrawerWindow? _drawer;
@@ -23,7 +26,9 @@ public partial class App : Application
             return;
         }
 
-        _drawer = new DrawerWindow();
+        var dbPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TodoDock", "data.db");
+        _repo = TodoRepository.OpenFile(dbPath);
+        _drawer = new DrawerWindow(new MainViewModel(_repo));
         _handle = new HandleWindow(_drawer);
         _handle.Show();
 
@@ -34,6 +39,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _tray?.Dispose();
+        _repo?.Dispose();
         _mutex?.Dispose();
         base.OnExit(e);
     }

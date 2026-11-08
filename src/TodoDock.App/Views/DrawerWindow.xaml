@@ -4,17 +4,109 @@
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True"
         Width="380" Background="{StaticResource PanelBrush}" Foreground="{StaticResource TextBrush}"
         FontFamily="Segoe UI" PreviewKeyDown="OnKey" Deactivated="OnDeactivated" Visibility="Hidden">
-    <Grid Margin="16">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="B2V"/>
+        <Style x:Key="FlatBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="Padding" Value="8,6"/>
+        </Style>
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/><Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="16,14,12,12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <DockPanel>
             <TextBlock Text="📋 TodoDock" FontSize="16" FontWeight="SemiBold"/>
-            <ToggleButton x:Name="PinButton" Content="📌" DockPanel.Dock="Right" Background="Transparent"
+            <ToggleButton x:Name="PinButton" Content="📌" DockPanel.Dock="Right" HorizontalAlignment="Right" Background="Transparent"
                           BorderThickness="0" Foreground="{StaticResource MutedBrush}" ToolTip="Закрепить панель"/>
         </DockPanel>
-        <TextBox x:Name="QuickAdd" Grid.Row="1" Margin="0,12,0,8" Padding="10"
-                 Background="{StaticResource CardBrush}" Foreground="{StaticResource TextBrush}"
-                 BorderBrush="{StaticResource AccentBrush}" BorderThickness="0,0,0,2" FontSize="14"/>
-        <TextBlock Grid.Row="2" Text="Здесь будут папки и задачи (этап M2)" Foreground="{StaticResource MutedBrush}"
-                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <TextBox x:Name="QuickAdd" Grid.Row="1" Margin="0,12,4,8" FontSize="14" Style="{StaticResource FlatBox}"
+                 Text="{Binding QuickText, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Пример: Купить хлеб #Дом !высокий @завтра 18:00 *ежедневно">
+            <TextBox.InputBindings><KeyBinding Key="Return" Command="{Binding AddTaskCommand}"/></TextBox.InputBindings>
+        </TextBox>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+            <ItemsControl ItemsSource="{Binding Folders}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="0,4">
+                            <!-- Заголовок папки: цель drag&drop -->
+                            <Border Background="Transparent" Padding="6,7" CornerRadius="8" AllowDrop="True" Cursor="Hand"
+                                    MouseLeftButtonUp="OnFolderClick" Drop="OnDropOnFolder">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Переименовать" Command="{Binding DataContext.RenameFolderStartCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                        <MenuItem Header="Удалить папку" Command="{Binding DataContext.DeleteFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+                                <DockPanel>
+                                    <TextBlock Text="{Binding Icon}" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{Binding Count}" DockPanel.Dock="Right" Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{Binding Color}">
+                                        <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                        </Style.Triggers></Style></TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FlatBox}"
+                                             Visibility="{Binding IsEditing, Converter={StaticResource B2V}}"
+                                             IsVisibleChanged="OnEditBoxVisible" LostFocus="OnFolderEditLostFocus" KeyDown="OnFolderEditKey"/>
+                                </DockPanel>
+                            </Border>
+                            <ItemsControl ItemsSource="{Binding Tasks}" Visibility="{Binding IsExpanded, Converter={StaticResource B2V}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="14,2,0,2" Padding="0" CornerRadius="8" Background="{StaticResource CardBrush}" AllowDrop="True"
+                                                PreviewMouseLeftButtonDown="OnTaskMouseDown" PreviewMouseMove="OnTaskMouseMove" Drop="OnDropOnTask"
+                                                MouseLeftButtonUp="OnTaskMouseUp">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Удалить" Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <DockPanel>
+                                                <Border DockPanel.Dock="Left" Width="4" CornerRadius="8,0,0,8" Background="{Binding PriorityColor}"/>
+                                                <CheckBox IsChecked="{Binding IsDone}" VerticalAlignment="Center" Margin="10,0,8,0"/>
+                                                <StackPanel Margin="0,8,10,8">
+                                                    <TextBlock Text="{Binding Title}" TextWrapping="Wrap" MouseLeftButtonDown="OnTaskTitleClick">
+                                                        <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                                                <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                                <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                        </Style.Triggers></Style></TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FlatBox}"
+                                                             Visibility="{Binding IsEditing, Converter={StaticResource B2V}}"
+                                                             IsVisibleChanged="OnEditBoxVisible" LostFocus="OnTaskEditLostFocus" KeyDown="OnTaskEditKey"/>
+                                                    <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{StaticResource MutedBrush}">
+                                                        <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Subtitle}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsOverdue}" Value="True"><Setter Property="Foreground" Value="#FF7A86"/></DataTrigger>
+                                                        </Style.Triggers></Style></TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <TextBox Grid.Row="3" Margin="0,8,4,0" Style="{StaticResource FlatBox}"
+                 Text="{Binding NewFolderName, UpdateSourceTrigger=PropertyChanged}" ToolTip="＋ Новая папка (Enter)">
+            <TextBox.InputBindings><KeyBinding Key="Return" Command="{Binding AddFolderCommand}"/></TextBox.InputBindings>
+        </TextBox>
     </Grid>
 </Window>

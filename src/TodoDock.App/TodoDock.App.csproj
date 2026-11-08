@@ -11,6 +11,10 @@
     <RootNamespace>TodoDock</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
+    <ProjectReference Include="..\TodoDock.Core\TodoDock.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
   </ItemGroup>
