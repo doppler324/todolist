@@ -67,6 +67,7 @@
                                                 MouseLeftButtonUp="OnTaskMouseUp">
                                             <Border.ContextMenu>
                                                 <ContextMenu>
+                                                    <MenuItem Header="Изменить…" Click="OnEditMenu"/>
                                                     <MenuItem Header="Удалить" Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
                                                 </ContextMenu>
                                             </Border.ContextMenu>

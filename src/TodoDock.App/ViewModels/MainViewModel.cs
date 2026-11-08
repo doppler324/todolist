@@ -78,6 +78,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     public void RenameFolder(long id, string name) => _repo.RenameFolder(id, name);
     public void SaveTask(TaskItem t) => _repo.UpdateTask(t);
+    public List<Folder> GetFolders() => _repo.GetFolders();
+    public TaskItem CloneTask(TaskItem t) => t.Clone();
+    public void UpdateTask(TaskItem t) { _repo.UpdateTask(t); Reload(); }
 
     public void CompleteTask(TaskVM t)
     {

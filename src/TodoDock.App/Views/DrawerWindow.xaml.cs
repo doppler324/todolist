@@ -14,6 +14,7 @@ public partial class DrawerWindow : Window
     private readonly MainViewModel _vm;
     private Point _dragStart;
     private bool _dragCandidate;
+    private bool _dialogOpen;
 
     public DrawerWindow(MainViewModel vm)
     {
@@ -61,7 +62,7 @@ public partial class DrawerWindow : Window
 
     private void OnDeactivated(object? sender, EventArgs e)
     {
-        if (PinButton.IsChecked != true) Close_();
+        if (PinButton.IsChecked != true && !_dialogOpen) Close_();
     }
 
     // ---------- Папки ----------
@@ -85,8 +86,25 @@ public partial class DrawerWindow : Window
     // ---------- Задачи: inline-редактирование ----------
     private void OnTaskTitleClick(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount == 2 && ((FrameworkElement)sender).DataContext is TaskVM t) { t.IsEditing = true; e.Handled = true; }
+        if (e.ClickCount == 2 && ((FrameworkElement)sender).DataContext is TaskVM t) { OpenEditor(t); e.Handled = true; }
     }
+    private void OnEditMenu(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is TaskVM t) OpenEditor(t);
+    }
+
+    private void OpenEditor(TaskVM t)
+    {
+        _dialogOpen = true;                    // панель не должна прятаться, пока открыт диалог
+        try
+        {
+            var copy = _vm.CloneTask(t.Item);
+            var dlg = new TaskEditWindow(copy, _vm.GetFolders());
+            if (dlg.ShowDialog() == true) _vm.UpdateTask(copy);
+        }
+        finally { _dialogOpen = false; Activate(); }
+    }
+
     private void OnTaskEditKey(object sender, KeyEventArgs e)
     {
         if (((FrameworkElement)sender).DataContext is not TaskVM t) return;

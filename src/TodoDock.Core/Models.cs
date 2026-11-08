@@ -24,6 +24,8 @@ public sealed class TaskItem
     public int SortOrder { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+
+    public TaskItem Clone() => (TaskItem)MemberwiseClone();
 }
 
 public enum NotificationStatus { Active, Snoozed, Dismissed }
