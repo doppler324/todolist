@@ -8,7 +8,7 @@ using TodoDock.Services;
 
 namespace TodoDock.Views;
 
-/// <summary>Стопка карточек уведомлений в правом нижнем углу. Автоскрытия нет.</summary>
+/// <summary>Стопка карточек уведомлений в правом верхнем углу. Автоскрытия нет.</summary>
 public partial class NotificationStackWindow : Window
 {
     private const double Margin_ = 12;
@@ -52,7 +52,7 @@ public partial class NotificationStackWindow : Window
     private void Reposition()
     {
         var area = SystemParameters.WorkArea;
-        Top = area.Bottom - ActualHeight - Margin_;
+        Top = area.Top + Margin_;   // правый верхний угол, стопка растёт вниз
         if (!_animating) Left = TargetLeft();
     }
 
