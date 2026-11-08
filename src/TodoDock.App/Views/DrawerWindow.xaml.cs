@@ -105,8 +105,15 @@ public partial class DrawerWindow : Window
     // ---------- Папки ----------
     private void OnFolderClick(object sender, MouseButtonEventArgs e)
     {
-        if (e.OriginalSource is TextBox) return;
-        if (((FrameworkElement)sender).DataContext is FolderVM f) f.IsExpanded = !f.IsExpanded;
+        // клики внутри поля редактирования (и по меню) папку не сворачивают
+        if (IsInside<TextBox>(e.OriginalSource) || IsInside<System.Windows.Controls.MenuItem>(e.OriginalSource)) return;
+        if (((FrameworkElement)sender).DataContext is not FolderVM f) return;
+        f.IsExpanded = !f.IsExpanded;
+        if (e.ClickCount == 2 && f.IsReal)      // двойной клик: вернуть сворачивание и начать переименование
+        {
+            f.IsExpanded = !f.IsExpanded;
+            f.IsEditing = true;
+        }
     }
 
     private void OnFolderEditKey(object sender, KeyEventArgs e)
@@ -117,7 +124,10 @@ public partial class DrawerWindow : Window
     }
     private void OnFolderEditLostFocus(object sender, RoutedEventArgs e)
     {
-        if (((FrameworkElement)sender).DataContext is FolderVM { IsEditing: true } f) f.CommitEdit();
+        if (((FrameworkElement)sender).DataContext is not FolderVM { IsEditing: true } f) return;
+        // Сразу после открытия поля фокус могут «перехватить» меню или окно — это не конец редактирования.
+        if (DateTime.UtcNow - _editStarted < TimeSpan.FromMilliseconds(700)) { FocusEditBox((TextBox)sender); return; }
+        f.CommitEdit();
     }
 
     // ---------- Задачи: inline-редактирование ----------
@@ -165,10 +175,17 @@ public partial class DrawerWindow : Window
     {
         // Фокус ставим после закрытия контекстного меню, иначе оно возвращает фокус
         // обратно, поле тут же теряет его и редактирование сразу завершается.
-        if (e.NewValue is true && sender is TextBox tb)
-            Dispatcher.BeginInvoke(new Action(() => { tb.Focus(); Keyboard.Focus(tb); tb.SelectAll(); }),
-                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        if (e.NewValue is true && sender is TextBox tb) { _editStarted = DateTime.UtcNow; FocusEditBox(tb); }
     }
+
+    private DateTime _editStarted;
+
+    private void FocusEditBox(TextBox tb) =>
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            Activate();
+            tb.Focus(); Keyboard.Focus(tb); tb.SelectAll();
+        }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
     // ---------- Drag & drop ----------
     private void OnTaskMouseDown(object sender, MouseButtonEventArgs e)
