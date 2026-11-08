@@ -9,11 +9,15 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <RootNamespace>TodoDock</RootNamespace>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.*" />
     <ProjectReference Include="..\TodoDock.Core\TodoDock.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
   </ItemGroup>
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />

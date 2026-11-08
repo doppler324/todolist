@@ -18,8 +18,19 @@ internal sealed class TrayService : IDisposable
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Выход", null, (_, _) => exit());
 
-        _icon = new NotifyIcon { Icon = SystemIcons.Application, Text = "TodoDock", Visible = true, ContextMenuStrip = menu };
+        _icon = new NotifyIcon { Icon = LoadIcon(), Text = "TodoDock", Visible = true, ContextMenuStrip = menu };
         _icon.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) toggle(); };
+    }
+
+    private static Icon LoadIcon()
+    {
+        try
+        {
+            var info = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"));
+            using var stream = info.Stream;
+            return new Icon(stream, SystemInformation.SmallIconSize);
+        }
+        catch { return SystemIcons.Application; }
     }
 
     public void Dispose() { _icon.Visible = false; _icon.Dispose(); }
