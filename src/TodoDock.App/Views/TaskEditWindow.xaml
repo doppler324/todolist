@@ -32,6 +32,7 @@
 
         <TextBlock Text="Повтор"/>
         <ComboBox x:Name="RepeatBox" Margin="0,4,0,8" DisplayMemberPath="Name"/>
+        <CheckBox x:Name="TgBox" Content="Дублировать в Telegram" Margin="0,2,0,8"/>
         <TextBlock x:Name="Error" Foreground="#C42B1C" Margin="0,0,0,6" Visibility="Collapsed"/>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">

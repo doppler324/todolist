@@ -21,6 +21,7 @@ public partial class TaskEditWindow : Window
         _item = item;
         TitleBox.Text = item.Title;
         NoteBox.Text = item.Note;
+        TgBox.IsChecked = item.SendTelegram;
 
         var list = new List<Folder> { NoFolder };
         list.AddRange(folders);
@@ -65,6 +66,7 @@ public partial class TaskEditWindow : Window
         _item.Priority = (Priority)PriorityBox.SelectedIndex;
         _item.DueAt = due;
         _item.RepeatRule = repeat.Rule;
+        _item.SendTelegram = TgBox.IsChecked == true;
         DialogResult = true;
     }
 

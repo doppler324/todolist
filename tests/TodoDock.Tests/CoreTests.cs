@@ -168,3 +168,113 @@ public class NotificationTests
         Assert.Single(r.Tick(Now.AddDays(1)));
     }
 }
+
+public class TelegramTests
+{
+    private static readonly DateTime Now = new(2026, 11, 11, 12, 0, 0);
+
+    private sealed class FakeHandler : HttpMessageHandler
+    {
+        public Queue<Func<HttpRequestMessage, HttpResponseMessage>> Responses = new();
+        public List<string> Requests = new();
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct)
+        {
+            Requests.Add(req.RequestUri!.ToString() + " " + (req.Content?.ReadAsStringAsync(ct).Result ?? ""));
+            return Task.FromResult(Responses.Dequeue()(req));
+        }
+    }
+
+    private static HttpResponseMessage Json(int code, string body) =>
+        new((System.Net.HttpStatusCode)code) { Content = new StringContent(body) };
+
+    private static (TodoRepository, TelegramSettings, FakeHandler, TelegramOutboxProcessor) Setup()
+    {
+        var repo = TodoRepository.InMemory();
+        var settings = new TelegramSettings(repo, s => "enc:" + s, s => s["enc:".Length..]) { Enabled = true, Token = "123:ABC", ChatId = 42 };
+        var h = new FakeHandler();
+        return (repo, settings, h, new TelegramOutboxProcessor(repo, new TelegramClient(new HttpClient(h)), settings));
+    }
+
+    [Fact]
+    public void Token_is_stored_protected()
+    {
+        var (repo, s, _, _) = Setup();
+        Assert.Equal("enc:123:ABC", repo.GetSetting("telegram.token"));
+        Assert.Equal("123:ABC", s.Token);
+        Assert.True(s.IsReady);
+    }
+
+    [Fact]
+    public async Task Sends_pending_message_and_marks_sent()
+    {
+        var (repo, _, h, p) = Setup();
+        var id = repo.EnqueueTelegram("hi", null, Now);
+        h.Responses.Enqueue(_ => Json(200, "{\"ok\":true}"));
+        Assert.Equal(1, await p.ProcessAsync(Now));
+        Assert.Equal("sent", repo.GetOutboxStatus(id));
+        Assert.Contains("bot123:ABC/sendMessage", h.Requests[0]);
+        Assert.Contains("\"chat_id\":42", h.Requests[0]);
+    }
+
+    [Fact]
+    public async Task Network_error_retries_later_with_backoff()
+    {
+        var (repo, _, h, p) = Setup();
+        var id = repo.EnqueueTelegram("hi", null, Now);
+        h.Responses.Enqueue(_ => Json(502, "{\"ok\":false,\"description\":\"Bad Gateway\"}"));
+        Assert.Equal(0, await p.ProcessAsync(Now));
+        Assert.Equal("pending", repo.GetOutboxStatus(id));
+        Assert.Empty(repo.GetDueOutbox(Now.AddSeconds(10)));          // рано
+        h.Responses.Enqueue(_ => Json(200, "{\"ok\":true}"));
+        Assert.Equal(1, await p.ProcessAsync(Now.AddMinutes(1)));     // позже — уходит
+        Assert.Equal("sent", repo.GetOutboxStatus(id));
+    }
+
+    [Fact]
+    public async Task Forbidden_fails_permanently()
+    {
+        var (repo, _, h, p) = Setup();
+        var id = repo.EnqueueTelegram("hi", null, Now);
+        h.Responses.Enqueue(_ => Json(403, "{\"ok\":false,\"description\":\"Forbidden: bot was blocked\"}"));
+        await p.ProcessAsync(Now);
+        Assert.Equal("failed", repo.GetOutboxStatus(id));
+    }
+
+    [Fact]
+    public async Task Does_nothing_when_disabled()
+    {
+        var (repo, s, h, p) = Setup();
+        repo.EnqueueTelegram("hi", null, Now);
+        s.Enabled = false;
+        Assert.Equal(0, await p.ProcessAsync(Now));
+        Assert.Empty(h.Requests);
+    }
+
+    [Fact]
+    public async Task FindChat_returns_latest_private_chat()
+    {
+        var h = new FakeHandler();
+        h.Responses.Enqueue(_ => Json(200, "{\"ok\":true,\"result\":[" +
+            "{\"update_id\":1,\"message\":{\"chat\":{\"id\":7,\"type\":\"group\"}}}," +
+            "{\"update_id\":2,\"message\":{\"chat\":{\"id\":99,\"type\":\"private\",\"first_name\":\"Ann\",\"username\":\"ann\"}}}]}"));
+        var chat = await new TelegramClient(new HttpClient(h)).FindChatAsync("t");
+        Assert.Equal(99, chat!.Value.ChatId);
+        Assert.Contains("Ann", chat.Value.Name);
+    }
+
+    [Fact]
+    public void Message_is_html_escaped() =>
+        Assert.Equal("🔔 <b>a &lt;b&gt; &amp;</b>\nДом", TelegramFormat.Notification(new AppNotification { Title = "a <b> &", Body = "Дом" }));
+
+    [Fact]
+    public void Tick_marks_only_tasks_with_telegram_flag()
+    {
+        using var r = TodoRepository.InMemory();
+        r.AddTask("on", null, Priority.Normal, Now, null, Now);
+        var off = r.AddTask("off", null, Priority.Normal, Now, null, Now);
+        off.SendTelegram = false; r.UpdateTask(off);
+        var fresh = r.Tick(Now);
+        Assert.True(fresh.Single(n => n.Title == "on").SendTelegram);
+        Assert.False(fresh.Single(n => n.Title == "off").SendTelegram);
+    }
+}

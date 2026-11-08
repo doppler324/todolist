@@ -23,6 +23,7 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <DockPanel>
             <TextBlock Text="📋 TodoDock" FontSize="16" FontWeight="SemiBold"/>
+            <Button Content="⚙" DockPanel.Dock="Right" Style="{StaticResource GhostButton}" ToolTip="Настройки (Telegram)" Margin="0,0,6,0" Click="OnSettings"/>
             <ToggleButton x:Name="PinButton" Content="📌" DockPanel.Dock="Right" HorizontalAlignment="Right" Background="Transparent"
                           BorderThickness="0" Foreground="{StaticResource MutedBrush}" ToolTip="Закрепить панель"/>
         </DockPanel>

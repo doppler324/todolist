@@ -14,13 +14,14 @@ public sealed class NotificationService : IDisposable
 {
     private readonly TodoRepository _repo;
     private readonly Action _tasksChanged;
+    private readonly TelegramService? _telegram;
     private readonly DispatcherTimer _timer = new();
 
     public ObservableCollection<AppNotification> Active { get; } = new();
 
-    public NotificationService(TodoRepository repo, Action tasksChanged)
+    public NotificationService(TodoRepository repo, Action tasksChanged, TelegramService? telegram = null)
     {
-        _repo = repo; _tasksChanged = tasksChanged;
+        _repo = repo; _tasksChanged = tasksChanged; _telegram = telegram;
         _timer.Tick += (_, _) => Refresh();
         SystemEvents.PowerModeChanged += OnPower;
         SystemEvents.TimeChanged += OnTime;
@@ -39,6 +40,7 @@ public sealed class NotificationService : IDisposable
             if (Active.All(a => a.Id != n.Id)) Active.Add(n);
 
         if (fresh.Count > 0) SystemSounds.Asterisk.Play();
+        _telegram?.Enqueue(fresh);
         Schedule(now);
     }
 

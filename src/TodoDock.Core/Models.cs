@@ -24,6 +24,8 @@ public sealed class TaskItem
     public int SortOrder { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+    /// <summary>Дублировать уведомление по этой задаче в Telegram (если Telegram настроен).</summary>
+    public bool SendTelegram { get; set; } = true;
 
     public TaskItem Clone() => (TaskItem)MemberwiseClone();
 }
@@ -40,4 +42,6 @@ public sealed class AppNotification
     public DateTime CreatedAt { get; set; }
     public NotificationStatus Status { get; set; }
     public DateTime? SnoozeUntil { get; set; }
+    /// <summary>Не хранится: true только для уведомления, созданного прямо сейчас по задаче с флагом Telegram.</summary>
+    public bool SendTelegram { get; set; }
 }

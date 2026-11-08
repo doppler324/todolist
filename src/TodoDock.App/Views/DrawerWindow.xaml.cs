@@ -16,9 +16,12 @@ public partial class DrawerWindow : Window
     private bool _dragCandidate;
     private bool _dialogOpen;
 
-    public DrawerWindow(MainViewModel vm)
+    private readonly TelegramService _telegram;
+
+    public DrawerWindow(MainViewModel vm, TelegramService telegram)
     {
         _vm = vm;
+        _telegram = telegram;
         InitializeComponent();
         DataContext = vm;
         var area = SystemParameters.WorkArea;
@@ -91,6 +94,15 @@ public partial class DrawerWindow : Window
     private void OnEditMenu(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).DataContext is TaskVM t) OpenEditor(t);
+    }
+
+    private void OnSettings(object sender, RoutedEventArgs e) => OpenSettings();
+
+    public void OpenSettings()
+    {
+        _dialogOpen = true;
+        try { new SettingsWindow(_telegram).ShowDialog(); }
+        finally { _dialogOpen = false; if (IsOpen) Activate(); }
     }
 
     private void OpenEditor(TaskVM t)

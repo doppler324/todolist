@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.*" />
     <ProjectReference Include="..\TodoDock.Core\TodoDock.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
