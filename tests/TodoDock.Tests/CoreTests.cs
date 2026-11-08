@@ -95,3 +95,76 @@ public class RepositoryTests
         Assert.All(ts, t => Assert.Equal(f.Id, t.FolderId));
     }
 }
+
+public class NotificationTests
+{
+    private static readonly DateTime Now = new(2026, 11, 11, 12, 0, 0);
+
+    [Fact]
+    public void Tick_fires_due_task_once_and_it_stays_active()
+    {
+        using var r = TodoRepository.InMemory();
+        r.AddTask("x", null, Priority.Normal, Now.AddMinutes(-5), null, Now);
+        r.AddTask("future", null, Priority.Normal, Now.AddHours(1), null, Now);
+        Assert.Single(r.Tick(Now));
+        Assert.Empty(r.Tick(Now.AddMinutes(1)));                 // повторно не создаётся
+        Assert.Single(r.GetActiveNotifications());               // и висит, пока не закрыто
+    }
+
+    [Fact]
+    public void Missed_notifications_fire_after_restart()
+    {
+        using var r = TodoRepository.InMemory();
+        r.AddTask("x", null, Priority.Normal, Now, null, Now);
+        Assert.Single(r.Tick(Now.AddDays(2)));
+    }
+
+    [Fact]
+    public void Snooze_hides_then_wakes()
+    {
+        using var r = TodoRepository.InMemory();
+        r.AddTask("x", null, Priority.Normal, Now, null, Now);
+        var n = r.Tick(Now).Single();
+        r.Snooze(n.Id, Now.AddMinutes(5));
+        Assert.Empty(r.GetActiveNotifications());
+        Assert.Equal(Now.AddMinutes(5), r.NextWake());
+        Assert.Empty(r.Tick(Now.AddMinutes(4)));
+        Assert.Single(r.Tick(Now.AddMinutes(5)));
+        Assert.Single(r.GetActiveNotifications());
+    }
+
+    [Fact]
+    public void Dismiss_and_complete_clear_notifications()
+    {
+        using var r = TodoRepository.InMemory();
+        var a = r.AddTask("a", null, Priority.Normal, Now, null, Now);
+        var b = r.AddTask("b", null, Priority.Normal, Now, null, Now);
+        var ns = r.Tick(Now);
+        r.Dismiss(ns.First(n => n.TaskId == a.Id).Id);
+        Assert.Single(r.GetActiveNotifications());
+        r.Complete(b.Id, Now);
+        Assert.Empty(r.GetActiveNotifications());
+        Assert.Empty(r.Tick(Now.AddMinutes(1)));                 // закрытое не возвращается
+    }
+
+    [Fact]
+    public void NextWake_is_earliest_due()
+    {
+        using var r = TodoRepository.InMemory();
+        Assert.Null(r.NextWake());
+        r.AddTask("a", null, Priority.Normal, Now.AddHours(3), null, Now);
+        r.AddTask("b", null, Priority.Normal, Now.AddHours(1), null, Now);
+        Assert.Equal(Now.AddHours(1), r.NextWake());
+    }
+
+    [Fact]
+    public void Repeating_task_gets_new_notification_for_next_occurrence()
+    {
+        using var r = TodoRepository.InMemory();
+        var t = r.AddTask("зарядка", null, Priority.Normal, Now, RepeatRule.Daily, Now);
+        r.Tick(Now);
+        r.Complete(t.Id, Now);
+        Assert.Empty(r.GetActiveNotifications());
+        Assert.Single(r.Tick(Now.AddDays(1)));
+    }
+}

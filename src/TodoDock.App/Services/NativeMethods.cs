@@ -14,6 +14,15 @@ internal static class NativeMethods
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr h, int i, int v);
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr h, int attr, ref int v, int size);
 
+    [DllImport("shell32.dll")] private static extern int SHQueryUserNotificationState(out int state);
+
+    /// <summary>Полноэкранное приложение/игра/презентация — всплывающие окна лучше не показывать.</summary>
+    public static bool IsFullscreenAppRunning()
+    {
+        try { return SHQueryUserNotificationState(out var st) == 0 && st is 2 or 3 or 4; }
+        catch { return false; }
+    }
+
     /// <summary>Окно не берёт фокус и не показывается в Alt+Tab.</summary>
     public static void MakeToolNoActivate(Window w)
     {

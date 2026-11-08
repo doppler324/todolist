@@ -15,6 +15,9 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _quickText = "";
     [ObservableProperty] private string _newFolderName = "";
 
+    /// <summary>Данные задач изменились (нужно пересчитать уведомления).</summary>
+    public event Action? Changed;
+
     public MainViewModel(TodoRepository repo) { _repo = repo; Reload(); }
 
     public void Reload()
@@ -31,6 +34,7 @@ public sealed partial class MainViewModel : ObservableObject
             // «Без папки» показываем только когда в ней что-то есть
             if (f.IsReal || f.Count > 0) Folders.Add(f);
         }
+        Changed?.Invoke();
     }
 
     [RelayCommand]

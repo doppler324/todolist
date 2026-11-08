@@ -1,0 +1,63 @@
+<Window x:Class="TodoDock.Views.NotificationStackWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
+        ShowInTaskbar="False" Topmost="True" ShowActivated="False" SizeToContent="Height" Width="368"
+        Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style x:Key="Chip" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Opacity" Value="0.8"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" Margin="0">
+        <ItemsControl x:Name="Cards">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="12,6,12,6" Padding="14,12" CornerRadius="10" Background="{StaticResource PanelBrush}"
+                            BorderBrush="#FF9F43" BorderThickness="4,0,0,0">
+                        <Border.Effect><DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.45"/></Border.Effect>
+                        <Border.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard><Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.25"/>
+                                    <ThicknessAnimation Storyboard.TargetProperty="Margin" From="12,26,12,-14" To="12,6,12,6" Duration="0:0:0.25"/>
+                                </Storyboard></BeginStoryboard>
+                            </EventTrigger>
+                        </Border.Triggers>
+                        <StackPanel>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource Chip}" Background="Transparent"
+                                        Margin="8,0,0,0" Padding="6,0" ToolTip="Закрыть" Click="OnClose"/>
+                                <TextBlock Text="{Binding Title, StringFormat='🔔 {0}'}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding Body}" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Content="5 мин" Tag="5" Style="{StaticResource Chip}" Click="OnSnooze"/>
+                                <Button Content="1 час" Tag="60" Style="{StaticResource Chip}" Click="OnSnooze"/>
+                                <Button Content="Завтра" Tag="tomorrow" Style="{StaticResource Chip}" Click="OnSnooze"/>
+                                <Button Content="Выполнено" Style="{StaticResource Chip}" Background="{StaticResource AccentBrush}" Click="OnDone"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
+</Window>

@@ -20,7 +20,11 @@ CREATE TABLE IF NOT EXISTS tasks(
   id INTEGER PRIMARY KEY AUTOINCREMENT, folder_id INTEGER NULL REFERENCES folders(id) ON DELETE SET NULL,
   title TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', priority INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'open', due_at TEXT NULL, repeat_rule TEXT NULL,
-  sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, completed_at TEXT NULL);");
+  sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, completed_at TEXT NULL);
+CREATE TABLE IF NOT EXISTS notifications(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NULL, fire_at TEXT NOT NULL,
+  title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active', snooze_until TEXT NULL, UNIQUE(task_id, fire_at));");
     }
 
     public static TodoRepository OpenFile(string path)
@@ -118,6 +122,7 @@ VALUES($f,$t,$p,$d,$r,(SELECT IFNULL(MAX(sort_order),0)+1 FROM tasks),$c); SELEC
 
     public void DeleteTask(long id)
     {
+        using (var n = Cmd("DELETE FROM notifications WHERE task_id=$i")) { n.Parameters.AddWithValue("$i", id); n.ExecuteNonQuery(); }
         using var c = Cmd("DELETE FROM tasks WHERE id=$i"); c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery();
     }
 
@@ -128,6 +133,7 @@ VALUES($f,$t,$p,$d,$r,(SELECT IFNULL(MAX(sort_order),0)+1 FROM tasks),$c); SELEC
         using (var c = Cmd("UPDATE tasks SET status='done',completed_at=$c WHERE id=$i"))
         { c.Parameters.AddWithValue("$c", Iso(now)); c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery(); }
 
+        DismissForTask(id);
         var rule = RepeatRule.Parse(t.RepeatRule);
         if (rule == null) return null;
         var next = rule.Next(t.DueAt ?? now);
@@ -162,8 +168,85 @@ VALUES($f,$t,$p,$d,$r,(SELECT IFNULL(MAX(sort_order),0)+1 FROM tasks),$c); SELEC
         { using var c = Cmd("UPDATE folders SET sort_order=$o WHERE id=$i"); c.Parameters.AddWithValue("$o", i); c.Parameters.AddWithValue("$i", orderedIds[i]); c.ExecuteNonQuery(); }
     }
 
+    // ---------- Уведомления ----------
+    /// <summary>
+    /// Выполняет «тик» планировщика: будит отложенные уведомления и создаёт новые для задач,
+    /// срок которых наступил. Возвращает уведомления, ставшие активными именно сейчас.
+    /// </summary>
+    public List<AppNotification> Tick(DateTime now)
+    {
+        var fresh = new List<AppNotification>();
+        foreach (var n in ReadNotifications().Where(n => n.Status == NotificationStatus.Snoozed && n.SnoozeUntil <= now))
+        {
+            using var c = Cmd("UPDATE notifications SET status='active',snooze_until=NULL WHERE id=$i");
+            c.Parameters.AddWithValue("$i", n.Id); c.ExecuteNonQuery();
+            n.Status = NotificationStatus.Active; n.SnoozeUntil = null; fresh.Add(n);
+        }
+
+        var folders = GetFolders().ToDictionary(f => f.Id, f => f.Name);
+        var existing = ReadNotifications().Where(n => n.TaskId != null).Select(n => (n.TaskId, n.FireAt)).ToHashSet();
+        foreach (var t in GetTasks().Where(t => t.DueAt != null && t.DueAt <= now))
+        {
+            if (existing.Contains((t.Id, t.DueAt!.Value))) continue;
+            var body = (t.FolderId is { } fid && folders.TryGetValue(fid, out var fn) ? fn + " · " : "") + "срок " + t.DueAt.Value.ToString("dd.MM HH:mm");
+            using var c = Cmd("INSERT INTO notifications(task_id,fire_at,title,body,created_at) VALUES($t,$f,$ti,$b,$c); SELECT last_insert_rowid();");
+            c.Parameters.AddWithValue("$t", t.Id); c.Parameters.AddWithValue("$f", Iso(t.DueAt.Value));
+            c.Parameters.AddWithValue("$ti", t.Title); c.Parameters.AddWithValue("$b", body); c.Parameters.AddWithValue("$c", Iso(now));
+            var id = (long)c.ExecuteScalar()!;
+            fresh.Add(new AppNotification { Id = id, TaskId = t.Id, FireAt = t.DueAt.Value, Title = t.Title, Body = body, CreatedAt = now, Status = NotificationStatus.Active });
+        }
+        return fresh;
+    }
+
+    /// <summary>Ближайший момент, когда нужен следующий тик (срок задачи или конец отсрочки).</summary>
+    public DateTime? NextWake()
+    {
+        var existing = ReadNotifications().Where(n => n.TaskId != null).Select(n => (n.TaskId, n.FireAt)).ToHashSet();
+        var times = new List<DateTime>();
+        times.AddRange(GetTasks().Where(t => t.DueAt != null && !existing.Contains((t.Id, t.DueAt!.Value))).Select(t => t.DueAt!.Value));
+        times.AddRange(ReadNotifications().Where(n => n.Status == NotificationStatus.Snoozed && n.SnoozeUntil != null).Select(n => n.SnoozeUntil!.Value));
+        return times.Count == 0 ? null : times.Min();
+    }
+
+    public List<AppNotification> GetActiveNotifications() =>
+        ReadNotifications().Where(n => n.Status == NotificationStatus.Active).OrderBy(n => n.CreatedAt).ThenBy(n => n.Id).ToList();
+
+    public void Snooze(long id, DateTime until)
+    {
+        using var c = Cmd("UPDATE notifications SET status='snoozed',snooze_until=$u WHERE id=$i");
+        c.Parameters.AddWithValue("$u", Iso(until)); c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery();
+    }
+
+    public void Dismiss(long id)
+    {
+        using var c = Cmd("UPDATE notifications SET status='dismissed',snooze_until=NULL WHERE id=$i");
+        c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery();
+    }
+
+    private void DismissForTask(long taskId)
+    {
+        using var c = Cmd("UPDATE notifications SET status='dismissed',snooze_until=NULL WHERE task_id=$i");
+        c.Parameters.AddWithValue("$i", taskId); c.ExecuteNonQuery();
+    }
+
+    private List<AppNotification> ReadNotifications()
+    {
+        var list = new List<AppNotification>();
+        using var c = Cmd("SELECT id,task_id,fire_at,title,body,created_at,status,snooze_until FROM notifications");
+        using var r = c.ExecuteReader();
+        while (r.Read())
+            list.Add(new AppNotification
+            {
+                Id = r.GetInt64(0), TaskId = r.IsDBNull(1) ? null : r.GetInt64(1), FireAt = Parse(r.GetString(2)),
+                Title = r.GetString(3), Body = r.GetString(4), CreatedAt = Parse(r.GetString(5)),
+                Status = r.GetString(6) switch { "snoozed" => NotificationStatus.Snoozed, "dismissed" => NotificationStatus.Dismissed, _ => NotificationStatus.Active },
+                SnoozeUntil = r.IsDBNull(7) ? null : Parse(r.GetString(7))
+            });
+        return list;
+    }
+
     // ---------- helpers ----------
-    private static string Iso(DateTime d) => d.ToString("o", CultureInfo.InvariantCulture);
+    private static string Iso(DateTime d) => d.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
     private static DateTime Parse(string s) => DateTime.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
     private SqliteCommand Cmd(string sql) { var c = _db.CreateCommand(); c.CommandText = sql; return c; }
     private void Exec(string sql) { using var c = Cmd(sql); c.ExecuteNonQuery(); }

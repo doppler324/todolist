@@ -28,6 +28,7 @@ public partial class DrawerWindow : Window
     }
 
     public bool IsOpen => _shown;
+    public event Action<bool>? OpenChanged;
 
     public void Toggle() { if (_shown) Close_(); else Open(); }
 
@@ -35,6 +36,7 @@ public partial class DrawerWindow : Window
     {
         if (_shown) return;
         _shown = true;
+        OpenChanged?.Invoke(true);
         Visibility = Visibility.Visible;
         Activate();
         QuickAdd.Focus();
@@ -47,6 +49,7 @@ public partial class DrawerWindow : Window
     {
         if (!_shown) return;
         _shown = false;
+        OpenChanged?.Invoke(false);
         var right = SystemParameters.WorkArea.Right;
         var anim = new DoubleAnimation(right, TimeSpan.FromMilliseconds(160))
             { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };

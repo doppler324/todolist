@@ -25,3 +25,17 @@ public sealed class TaskItem
     public DateTime CreatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
 }
+
+public enum NotificationStatus { Active, Snoozed, Dismissed }
+
+public sealed class AppNotification
+{
+    public long Id { get; set; }
+    public long? TaskId { get; set; }
+    public DateTime FireAt { get; set; }
+    public string Title { get; set; } = "";
+    public string Body { get; set; } = "";
+    public DateTime CreatedAt { get; set; }
+    public NotificationStatus Status { get; set; }
+    public DateTime? SnoozeUntil { get; set; }
+}

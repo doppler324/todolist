@@ -16,7 +16,18 @@ public partial class HandleWindow : Window
         var area = SystemParameters.WorkArea;
         Left = area.Right - Width;
         Top = area.Top + (area.Height - Height) / 2;
+        Badge.Margin = new Thickness(0, 0, 14, 0);
         SourceInitialized += (_, _) => NativeMethods.MakeToolNoActivate(this);
+    }
+
+    /// <summary>Показывает число активных уведомлений; пока они есть — бейдж пульсирует.</summary>
+    public void SetBadge(int count)
+    {
+        BadgeText.Text = count.ToString();
+        Badge.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        Badge.BeginAnimation(OpacityProperty, count > 0
+            ? new DoubleAnimation(1, 0.45, TimeSpan.FromMilliseconds(700)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever }
+            : null);
     }
 
     private void OnClick(object sender, MouseButtonEventArgs e) => _drawer.Toggle();
