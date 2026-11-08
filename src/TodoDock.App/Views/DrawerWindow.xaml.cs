@@ -73,7 +73,9 @@ public partial class DrawerWindow : Window
 
     private void OnFolderEditKey(object sender, KeyEventArgs e)
     {
-        if (e.Key is Key.Enter or Key.Escape && ((FrameworkElement)sender).DataContext is FolderVM f) f.CommitEdit();
+        if (((FrameworkElement)sender).DataContext is not FolderVM f) return;
+        if (e.Key == Key.Enter) f.CommitEdit();
+        else if (e.Key == Key.Escape) { f.Name = f.Folder?.Name ?? f.Name; f.IsEditing = false; e.Handled = true; }
     }
     private void OnFolderEditLostFocus(object sender, RoutedEventArgs e)
     {
@@ -87,7 +89,9 @@ public partial class DrawerWindow : Window
     }
     private void OnTaskEditKey(object sender, KeyEventArgs e)
     {
-        if (e.Key is Key.Enter or Key.Escape && ((FrameworkElement)sender).DataContext is TaskVM t) t.CommitEdit();
+        if (((FrameworkElement)sender).DataContext is not TaskVM t) return;
+        if (e.Key == Key.Enter) t.CommitEdit();
+        else if (e.Key == Key.Escape) { t.Title = t.Item.Title; t.IsEditing = false; e.Handled = true; }
     }
     private void OnTaskEditLostFocus(object sender, RoutedEventArgs e)
     {
@@ -95,7 +99,11 @@ public partial class DrawerWindow : Window
     }
     private void OnEditBoxVisible(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (e.NewValue is true && sender is TextBox tb) { tb.Focus(); tb.SelectAll(); }
+        // Фокус ставим после закрытия контекстного меню, иначе оно возвращает фокус
+        // обратно, поле тут же теряет его и редактирование сразу завершается.
+        if (e.NewValue is true && sender is TextBox tb)
+            Dispatcher.BeginInvoke(new Action(() => { tb.Focus(); Keyboard.Focus(tb); tb.SelectAll(); }),
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     }
 
     // ---------- Drag & drop ----------
