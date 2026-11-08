@@ -26,10 +26,13 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
-                        <Border x:Name="box" Width="18" Height="18" CornerRadius="9" BorderThickness="1.5" BorderBrush="#9AA3B2" Background="Transparent">
-                            <TextBlock x:Name="mark" Text="✓" Foreground="White" FontSize="11" FontWeight="Bold"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
-                        </Border>
+                        <StackPanel Orientation="Horizontal" Background="Transparent">
+                            <Border x:Name="box" Width="18" Height="18" CornerRadius="9" BorderThickness="1.5" BorderBrush="#9AA3B2" Background="Transparent" VerticalAlignment="Center">
+                                <TextBlock x:Name="mark" Text="✓" Foreground="White" FontSize="11" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="box" Property="Background" Value="{StaticResource AccentBrush}"/>
