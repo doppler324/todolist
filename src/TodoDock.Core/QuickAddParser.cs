@@ -3,11 +3,11 @@ using System.Text.RegularExpressions;
 
 namespace TodoDock.Core;
 
-public sealed record ParsedTask(string Title, string? FolderName, Priority Priority, DateTime? DueAt, RepeatRule? Repeat);
+public sealed record ParsedTask(string Title, string? FolderName, DateTime? DueAt, RepeatRule? Repeat);
 
 /// <summary>
 /// Разбор быстрого ввода: «Купить хлеб #Дом !высокий @завтра 18:00 *ежедневно».
-/// #папка · !приоритет · @дата [время] · *повтор. Дата без времени = 09:00.
+/// #папка · @дата [время] · *повтор (ежедневно, будни, пн,ср,пт или числа месяца: 5,15,25). Дата без времени = 09:00.
 /// </summary>
 public static class QuickAddParser
 {
@@ -18,7 +18,6 @@ public static class QuickAddParser
     {
         var title = new List<string>();
         string? folder = null;
-        var priority = Priority.Normal;
         DateTime? date = null;
         TimeSpan? time = null;
         RepeatRule? repeat = null;
@@ -28,7 +27,6 @@ public static class QuickAddParser
         {
             var isDate = false;
             if (tok.Length > 1 && tok[0] == '#') folder = tok[1..];
-            else if (tok.Length > 1 && tok[0] == '!') priority = ParsePriority(tok[1..]) ?? priority;
             else if (tok.Length > 1 && tok[0] == '*' && ParseRepeat(tok[1..]) is { } r) repeat = r;
             else if (tok.Length > 1 && tok[0] == '@')
             {
@@ -52,7 +50,7 @@ public static class QuickAddParser
             if (date == null && due <= now) due = due.Value.AddDays(1); // только время, уже прошло → завтра
         }
 
-        return new ParsedTask(string.Join(' ', title), folder, priority, due, repeat);
+        return new ParsedTask(string.Join(' ', title), folder, due, repeat);
     }
 
     private static TimeSpan? ParseTime(string s)
@@ -81,14 +79,6 @@ public static class QuickAddParser
         return d;
     }
 
-    private static Priority? ParsePriority(string v) => v.ToLowerInvariant() switch
-    {
-        "высокий" or "выс" or "high" or "!" or "3" => Priority.High,
-        "обычный" or "норм" or "normal" or "2" => Priority.Normal,
-        "низкий" or "низ" or "low" or "1" => Priority.Low,
-        _ => null
-    };
-
     private static RepeatRule? ParseRepeat(string v)
     {
         switch (v.ToLowerInvariant())
@@ -98,6 +88,9 @@ public static class QuickAddParser
             case "ежемесячно": case "monthly": return RepeatRule.Monthly;
             case "будни": case "weekdays": return RepeatRule.Weekdays;
         }
+        var nums = v.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        if (nums.Length > 0 && nums.All(n => int.TryParse(n, out var d) && d is >= 1 and <= 31))
+            return RepeatRule.OnMonthDays(nums.Select(int.Parse));
         var map = new Dictionary<string, DayOfWeek>
         {
             ["пн"] = DayOfWeek.Monday, ["вт"] = DayOfWeek.Tuesday, ["ср"] = DayOfWeek.Wednesday,

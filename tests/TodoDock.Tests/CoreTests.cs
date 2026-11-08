@@ -9,10 +9,9 @@ public class ParserTests
     [Fact]
     public void Parses_all_tokens()
     {
-        var p = QuickAddParser.Parse("Купить хлеб #Дом !высокий @завтра 18:00 *ежедневно", Now);
+        var p = QuickAddParser.Parse("Купить хлеб #Дом @завтра 18:00 *ежедневно", Now);
         Assert.Equal("Купить хлеб", p.Title);
         Assert.Equal("Дом", p.FolderName);
-        Assert.Equal(Priority.High, p.Priority);
         Assert.Equal(new DateTime(2026, 11, 12, 18, 0, 0), p.DueAt);
         Assert.Equal("daily", p.Repeat!.ToString());
     }
@@ -23,11 +22,19 @@ public class ParserTests
     [Fact] public void Future_time_today() => Assert.Equal(new DateTime(2026, 11, 11, 18, 30, 0), QuickAddParser.Parse("x @18:30", Now).DueAt);
     [Fact] public void Past_date_rolls_to_next_year() => Assert.Equal(new DateTime(2027, 1, 5, 9, 0, 0), QuickAddParser.Parse("x @05.01", Now).DueAt);
     [Fact] public void Invalid_date_stays_in_title() => Assert.Equal("x @32.01", QuickAddParser.Parse("x @32.01", Now).Title);
+    [Fact] public void Month_days_repeat() => Assert.Equal("monthdays:5,15,25", QuickAddParser.Parse("x *25,5,15", Now).Repeat!.ToString());
+    [Fact] public void Exclamation_is_just_text() => Assert.Equal("Срочно !высокий", QuickAddParser.Parse("Срочно !высокий", Now).Title);
     [Fact] public void Weekday_list_repeat() => Assert.Equal("days:1,3,5", QuickAddParser.Parse("x *пн,ср,пт", Now).Repeat!.ToString());
 }
 
 public class RepeatTests
 {
+    [Fact] public void MonthDays_next_in_same_month() => Assert.Equal(new DateTime(2026, 11, 15, 9, 0, 0), RepeatRule.OnMonthDays(new[] { 5, 15, 25 }).Next(new DateTime(2026, 11, 5, 9, 0, 0)));
+    [Fact] public void MonthDays_wraps_to_next_month() => Assert.Equal(new DateTime(2026, 12, 5, 9, 0, 0), RepeatRule.OnMonthDays(new[] { 5, 15, 25 }).Next(new DateTime(2026, 11, 25, 9, 0, 0)));
+    [Fact] public void MonthDays_31_clamps_to_last_day() => Assert.Equal(new DateTime(2026, 2, 28, 8, 0, 0), RepeatRule.OnMonthDays(new[] { 31 }).Next(new DateTime(2026, 1, 31, 8, 0, 0)));
+    [Fact] public void MonthDays_roundtrip() => Assert.Equal("monthdays:5,15,25", RepeatRule.Parse("monthdays:25,5,15")!.ToString());
+    [Fact] public void FirstOnOrAfter_snaps_to_matching_day() => Assert.Equal(new DateTime(2026, 11, 15, 9, 0, 0), RepeatRule.OnMonthDays(new[] { 15 }).FirstOnOrAfter(new DateTime(2026, 11, 8, 9, 0, 0)));
+
     [Fact] public void Daily() => Assert.Equal(new DateTime(2026, 11, 12, 10, 0, 0), RepeatRule.Daily.Next(new DateTime(2026, 11, 11, 10, 0, 0)));
     [Fact] public void Monthly_clamps() => Assert.Equal(new DateTime(2026, 2, 28), RepeatRule.Monthly.Next(new DateTime(2026, 1, 31)));
     [Fact] public void Weekdays_skip_weekend() => Assert.Equal(new DateTime(2026, 11, 16), RepeatRule.Weekdays.Next(new DateTime(2026, 11, 13))); // пт → пн
@@ -293,5 +300,68 @@ public class TelegramTests
         var fresh = r.Tick(Now);
         Assert.True(fresh.Single(n => n.Title == "on").SendTelegram);
         Assert.False(fresh.Single(n => n.Title == "off").SendTelegram);
+    }
+}
+
+
+public class ReminderAndWidgetTests
+{
+    private static readonly DateTime Now = new(2026, 11, 11, 12, 0, 0);
+
+    [Fact]
+    public void Extra_reminders_fire_separately_from_due()
+    {
+        using var r = TodoRepository.InMemory();
+        var t = r.AddTask("Оплата", null, Priority.Normal, Now.AddDays(5), null, Now);
+        t.Reminders = new() { Now.AddMinutes(-10), Now.AddDays(1) };
+        r.UpdateTask(t);
+        var fresh = r.Tick(Now);
+        Assert.Single(fresh);
+        Assert.Contains("напоминание", fresh[0].Body);
+        Assert.Equal(Now.AddDays(1), r.NextWake());
+        Assert.Single(r.Tick(Now.AddDays(1)));
+        Assert.Equal(Now.AddDays(5), r.NextWake());
+    }
+
+    [Fact]
+    public void Reminders_are_saved_loaded_and_cleared_on_complete()
+    {
+        using var r = TodoRepository.InMemory();
+        var t = r.AddTask("x", null, Priority.Normal, Now.AddDays(2), RepeatRule.Daily, Now);
+        t.Reminders = new() { Now.AddDays(1), Now.AddHours(5) };
+        r.UpdateTask(t);
+        Assert.Equal(new[] { Now.AddHours(5), Now.AddDays(1) }, r.GetTasks().Single().Reminders);
+        var next = r.Complete(t.Id, Now)!;
+        Assert.Empty(next.Reminders);
+        Assert.Empty(r.GetTasks().Single().Reminders);
+    }
+
+    [Fact]
+    public void Deleting_task_removes_reminders()
+    {
+        using var r = TodoRepository.InMemory();
+        var t = r.AddTask("x", null, Priority.Normal, null, null, Now);
+        t.Reminders = new() { Now.AddHours(1) };
+        r.UpdateTask(t);
+        r.DeleteTask(t.Id);
+        Assert.Null(r.NextWake());
+    }
+
+    [Fact]
+    public void Monthdays_task_is_snapped_to_matching_day_on_creation()
+    {
+        using var r = TodoRepository.InMemory();
+        var t = r.AddParsed(QuickAddParser.Parse("аренда @11.11 10:00 *15", Now), Now);
+        Assert.Equal(new DateTime(2026, 11, 15, 10, 0, 0), t.DueAt);
+    }
+
+    [Fact]
+    public void Folder_desktop_flag_persists()
+    {
+        using var r = TodoRepository.InMemory();
+        var f = r.AddFolder("F", Now);
+        Assert.False(r.GetFolders().Single().ShowOnDesktop);
+        r.SetFolderShowOnDesktop(f.Id, true);
+        Assert.True(r.GetFolders().Single().ShowOnDesktop);
     }
 }

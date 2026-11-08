@@ -17,7 +17,8 @@ public sealed class TodoRepository : IDisposable
         Exec(@"
 CREATE TABLE IF NOT EXISTS folders(
   id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#4F8CFF',
-  icon TEXT NOT NULL DEFAULT '📁', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
+  icon TEXT NOT NULL DEFAULT '📁', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+  show_on_desktop INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS tasks(
   id INTEGER PRIMARY KEY AUTOINCREMENT, folder_id INTEGER NULL REFERENCES folders(id) ON DELETE SET NULL,
   title TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', priority INTEGER NOT NULL DEFAULT 1,
@@ -28,6 +29,8 @@ CREATE TABLE IF NOT EXISTS notifications(
   id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NULL, fire_at TEXT NOT NULL,
   title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active', snooze_until TEXT NULL, UNIQUE(task_id, fire_at));
+CREATE TABLE IF NOT EXISTS task_reminders(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE, fire_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS telegram_outbox(
   id INTEGER PRIMARY KEY AUTOINCREMENT, notification_id INTEGER NULL, text TEXT NOT NULL,
@@ -42,6 +45,9 @@ CREATE TABLE IF NOT EXISTS telegram_outbox(
         var cols = new HashSet<string>();
         using (var c = Cmd("PRAGMA table_info(tasks)")) using (var r = c.ExecuteReader()) while (r.Read()) cols.Add(r.GetString(1));
         if (!cols.Contains("send_telegram")) Exec("ALTER TABLE tasks ADD COLUMN send_telegram INTEGER NOT NULL DEFAULT 1;");
+        var fcols = new HashSet<string>();
+        using (var c = Cmd("PRAGMA table_info(folders)")) using (var r = c.ExecuteReader()) while (r.Read()) fcols.Add(r.GetString(1));
+        if (!fcols.Contains("show_on_desktop")) Exec("ALTER TABLE folders ADD COLUMN show_on_desktop INTEGER NOT NULL DEFAULT 0;");
     }
 
     public static TodoRepository OpenFile(string path)
@@ -56,10 +62,10 @@ CREATE TABLE IF NOT EXISTS telegram_outbox(
     public List<Folder> GetFolders()
     {
         var list = new List<Folder>();
-        using var c = Cmd("SELECT id,name,color,icon,sort_order FROM folders ORDER BY sort_order,id");
+        using var c = Cmd("SELECT id,name,color,icon,sort_order,show_on_desktop FROM folders ORDER BY sort_order,id");
         using var r = c.ExecuteReader();
         while (r.Read())
-            list.Add(new Folder { Id = r.GetInt64(0), Name = r.GetString(1), Color = r.GetString(2), Icon = r.GetString(3), SortOrder = r.GetInt32(4) });
+            list.Add(new Folder { Id = r.GetInt64(0), Name = r.GetString(1), Color = r.GetString(2), Icon = r.GetString(3), SortOrder = r.GetInt32(4), ShowOnDesktop = r.GetInt32(5) != 0 });
         return list;
     }
 
@@ -70,6 +76,12 @@ CREATE TABLE IF NOT EXISTS telegram_outbox(
         c.Parameters.AddWithValue("$c", Iso(now));
         var id = (long)c.ExecuteScalar()!;
         return GetFolders().First(f => f.Id == id);
+    }
+
+    public void SetFolderShowOnDesktop(long id, bool show)
+    {
+        using var c = Cmd("UPDATE folders SET show_on_desktop=$s WHERE id=$i");
+        c.Parameters.AddWithValue("$s", show ? 1 : 0); c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery();
     }
 
     public Folder GetOrCreateFolder(string name, DateTime now) =>
@@ -87,6 +99,7 @@ CREATE TABLE IF NOT EXISTS telegram_outbox(
         if (deleteTasks)
         {
             using (var n = Cmd("DELETE FROM notifications WHERE task_id IN (SELECT id FROM tasks WHERE folder_id=$i)")) { n.Parameters.AddWithValue("$i", id); n.ExecuteNonQuery(); }
+            using (var n = Cmd("DELETE FROM task_reminders WHERE task_id IN (SELECT id FROM tasks WHERE folder_id=$i)")) { n.Parameters.AddWithValue("$i", id); n.ExecuteNonQuery(); }
             using var d = Cmd("DELETE FROM tasks WHERE folder_id=$i"); d.Parameters.AddWithValue("$i", id); d.ExecuteNonQuery();
         }
         using var c = Cmd("DELETE FROM folders WHERE id=$i"); c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery();
@@ -107,6 +120,12 @@ CREATE TABLE IF NOT EXISTS telegram_outbox(
                 DueAt = r.IsDBNull(6) ? null : Parse(r.GetString(6)), RepeatRule = r.IsDBNull(7) ? null : r.GetString(7),
                 SortOrder = r.GetInt32(8), CreatedAt = Parse(r.GetString(9)), CompletedAt = r.IsDBNull(10) ? null : Parse(r.GetString(10)), SendTelegram = r.GetInt32(11) != 0
             });
+        r.Close();
+        var byTask = list.ToDictionary(t => t.Id);
+        using var rc = Cmd("SELECT task_id,fire_at FROM task_reminders ORDER BY fire_at");
+        using var rr = rc.ExecuteReader();
+        while (rr.Read())
+            if (byTask.TryGetValue(rr.GetInt64(0), out var task)) task.Reminders.Add(Parse(rr.GetString(1)));
         return list;
     }
 
@@ -127,7 +146,8 @@ VALUES($f,$t,$p,$d,$r,(SELECT IFNULL(MAX(sort_order),0)+1 FROM tasks),$c); SELEC
     public TaskItem AddParsed(ParsedTask p, DateTime now)
     {
         long? folderId = p.FolderName is { Length: > 0 } fn ? GetOrCreateFolder(fn, now).Id : null;
-        return AddTask(p.Title, folderId, p.Priority, p.DueAt, p.Repeat, now);
+        var due = p.DueAt is { } d && p.Repeat != null ? p.Repeat.FirstOnOrAfter(d) : p.DueAt;
+        return AddTask(p.Title, folderId, Priority.Normal, due, p.Repeat, now);
     }
 
     public void UpdateTask(TaskItem t)
@@ -140,11 +160,29 @@ VALUES($f,$t,$p,$d,$r,(SELECT IFNULL(MAX(sort_order),0)+1 FROM tasks),$c); SELEC
         c.Parameters.AddWithValue("$r", (object?)t.RepeatRule ?? DBNull.Value);
         c.Parameters.AddWithValue("$f", (object?)t.FolderId ?? DBNull.Value);
         c.Parameters.AddWithValue("$i", t.Id); c.ExecuteNonQuery();
+        SetReminders(t.Id, t.Reminders);
+    }
+
+    /// <summary>Заменяет список дополнительных напоминаний задачи.</summary>
+    public void SetReminders(long taskId, IEnumerable<DateTime> times)
+    {
+        ClearReminders(taskId);
+        foreach (var at in times.Distinct().OrderBy(x => x))
+        {
+            using var c = Cmd("INSERT INTO task_reminders(task_id,fire_at) VALUES($t,$f)");
+            c.Parameters.AddWithValue("$t", taskId); c.Parameters.AddWithValue("$f", Iso(at)); c.ExecuteNonQuery();
+        }
+    }
+
+    private void ClearReminders(long taskId)
+    {
+        using var c = Cmd("DELETE FROM task_reminders WHERE task_id=$t"); c.Parameters.AddWithValue("$t", taskId); c.ExecuteNonQuery();
     }
 
     public void DeleteTask(long id)
     {
         using (var n = Cmd("DELETE FROM notifications WHERE task_id=$i")) { n.Parameters.AddWithValue("$i", id); n.ExecuteNonQuery(); }
+        ClearReminders(id);
         using var c = Cmd("DELETE FROM tasks WHERE id=$i"); c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery();
     }
 
@@ -156,6 +194,7 @@ VALUES($f,$t,$p,$d,$r,(SELECT IFNULL(MAX(sort_order),0)+1 FROM tasks),$c); SELEC
         { c.Parameters.AddWithValue("$c", Iso(now)); c.Parameters.AddWithValue("$i", id); c.ExecuteNonQuery(); }
 
         DismissForTask(id);
+        ClearReminders(id);   // разовые напоминания принадлежат этому вхождению
         var rule = RepeatRule.Parse(t.RepeatRule);
         if (rule == null) return null;
         var next = rule.Next(t.DueAt ?? now);
@@ -207,15 +246,25 @@ VALUES($f,$t,$p,$d,$r,(SELECT IFNULL(MAX(sort_order),0)+1 FROM tasks),$c); SELEC
 
         var folders = GetFolders().ToDictionary(f => f.Id, f => f.Name);
         var existing = ReadNotifications().Where(n => n.TaskId != null).Select(n => (n.TaskId, n.FireAt)).ToHashSet();
-        foreach (var t in GetTasks().Where(t => t.DueAt != null && t.DueAt <= now))
+        foreach (var t in GetTasks())
         {
-            if (existing.Contains((t.Id, t.DueAt!.Value))) continue;
-            var body = (t.FolderId is { } fid && folders.TryGetValue(fid, out var fn) ? fn + " · " : "") + "срок " + t.DueAt.Value.ToString("dd.MM HH:mm");
-            using var c = Cmd("INSERT INTO notifications(task_id,fire_at,title,body,created_at) VALUES($t,$f,$ti,$b,$c); SELECT last_insert_rowid();");
-            c.Parameters.AddWithValue("$t", t.Id); c.Parameters.AddWithValue("$f", Iso(t.DueAt.Value));
-            c.Parameters.AddWithValue("$ti", t.Title); c.Parameters.AddWithValue("$b", body); c.Parameters.AddWithValue("$c", Iso(now));
-            var id = (long)c.ExecuteScalar()!;
-            fresh.Add(new AppNotification { Id = id, TaskId = t.Id, FireAt = t.DueAt.Value, Title = t.Title, Body = body, CreatedAt = now, Status = NotificationStatus.Active, SendTelegram = t.SendTelegram });
+            var points = new List<(DateTime At, bool Extra)>();
+            if (t.DueAt is { } due) points.Add((due, false));
+            points.AddRange(t.Reminders.Select(r => (r, true)));
+            foreach (var (at, extra) in points)
+            {
+                if (at > now || existing.Contains((t.Id, at))) continue;
+                var what = extra
+                    ? "напоминание" + (t.DueAt is { } d2 ? ", срок " + d2.ToString("dd.MM HH:mm") : "")
+                    : "срок " + at.ToString("dd.MM HH:mm");
+                var body = (t.FolderId is { } fid && folders.TryGetValue(fid, out var fn) ? fn + " · " : "") + what;
+                using var c = Cmd("INSERT INTO notifications(task_id,fire_at,title,body,created_at) VALUES($t,$f,$ti,$b,$c); SELECT last_insert_rowid();");
+                c.Parameters.AddWithValue("$t", t.Id); c.Parameters.AddWithValue("$f", Iso(at));
+                c.Parameters.AddWithValue("$ti", t.Title); c.Parameters.AddWithValue("$b", body); c.Parameters.AddWithValue("$c", Iso(now));
+                var id = (long)c.ExecuteScalar()!;
+                existing.Add((t.Id, at));
+                fresh.Add(new AppNotification { Id = id, TaskId = t.Id, FireAt = at, Title = t.Title, Body = body, CreatedAt = now, Status = NotificationStatus.Active, SendTelegram = t.SendTelegram });
+            }
         }
         return fresh;
     }
@@ -225,7 +274,11 @@ VALUES($f,$t,$p,$d,$r,(SELECT IFNULL(MAX(sort_order),0)+1 FROM tasks),$c); SELEC
     {
         var existing = ReadNotifications().Where(n => n.TaskId != null).Select(n => (n.TaskId, n.FireAt)).ToHashSet();
         var times = new List<DateTime>();
-        times.AddRange(GetTasks().Where(t => t.DueAt != null && !existing.Contains((t.Id, t.DueAt!.Value))).Select(t => t.DueAt!.Value));
+        foreach (var t in GetTasks())
+        {
+            if (t.DueAt is { } du && !existing.Contains((t.Id, du))) times.Add(du);
+            times.AddRange(t.Reminders.Where(r => !existing.Contains((t.Id, r))));
+        }
         times.AddRange(ReadNotifications().Where(n => n.Status == NotificationStatus.Snoozed && n.SnoozeUntil != null).Select(n => n.SnoozeUntil!.Value));
         return times.Count == 0 ? null : times.Min();
     }

@@ -9,6 +9,8 @@ public sealed class Folder
     public string Color { get; set; } = "#4F8CFF";
     public string Icon { get; set; } = "📁";
     public int SortOrder { get; set; }
+    /// <summary>Задачи этой папки показываются в окне на рабочем столе.</summary>
+    public bool ShowOnDesktop { get; set; }
 }
 
 public sealed class TaskItem
@@ -27,7 +29,15 @@ public sealed class TaskItem
     /// <summary>Дублировать уведомление по этой задаче в Telegram (если Telegram настроен).</summary>
     public bool SendTelegram { get; set; } = true;
 
-    public TaskItem Clone() => (TaskItem)MemberwiseClone();
+    /// <summary>Дополнительные разовые напоминания (в дополнение к сроку и повтору).</summary>
+    public List<DateTime> Reminders { get; set; } = new();
+
+    public TaskItem Clone()
+    {
+        var c = (TaskItem)MemberwiseClone();
+        c.Reminders = new List<DateTime>(Reminders);
+        return c;
+    }
 }
 
 public enum NotificationStatus { Active, Snoozed, Dismissed }
