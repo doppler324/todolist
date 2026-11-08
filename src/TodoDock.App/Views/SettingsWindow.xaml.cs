@@ -26,8 +26,12 @@ public partial class SettingsWindow : Window
     private void ShowChat() =>
         ChatStatus.Text = _chatId is { } id ? $"Чат привязан (id {id})" : "Чат не привязан";
 
-    private static void Say(System.Windows.Controls.TextBlock t, string msg, bool ok)
-    { t.Text = msg; t.Foreground = ok ? Brushes.SeaGreen : Brushes.Firebrick; }
+    private void Say(System.Windows.Controls.TextBlock t, string msg, bool ok)
+    { t.Text = msg; t.Foreground = (Brush)FindResource(ok ? "OkBrush" : "ErrorBrush"); }
+
+    private void OnDrag(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    { if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed) DragMove(); }
+    private void OnCancel(object sender, RoutedEventArgs e) => DialogResult = false;
 
     private async void OnCheck(object sender, RoutedEventArgs e)
     {

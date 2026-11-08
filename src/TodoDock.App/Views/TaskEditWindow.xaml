@@ -1,43 +1,59 @@
 <Window x:Class="TodoDock.Views.TaskEditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Изменить задачу" Width="400" SizeToContent="Height" ResizeMode="NoResize"
-        WindowStartupLocation="CenterScreen" Topmost="True" Background="#F3F3F3" FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="18">
-        <TextBlock Text="Название"/>
-        <TextBox x:Name="TitleBox" Margin="0,4,0,10" Padding="6"/>
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
+        Width="440" SizeToContent="Height" WindowStartupLocation="CenterScreen" Topmost="True"
+        Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI" FontSize="13">
+    <Border Margin="14" CornerRadius="12" Background="#FF202229" BorderBrush="#22FFFFFF" BorderThickness="1">
+        <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.5"/></Border.Effect>
+        <StackPanel Margin="20,14,20,18">
+            <DockPanel MouseLeftButtonDown="OnDrag" Background="Transparent">
+                <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource GhostButton}" Click="OnCancel" ToolTip="Закрыть"/>
+                <TextBlock Text="Изменить задачу" FontSize="16" FontWeight="SemiBold"/>
+            </DockPanel>
 
-        <TextBlock Text="Заметка"/>
-        <TextBox x:Name="NoteBox" Margin="0,4,0,10" Padding="6" Height="60" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+            <TextBlock Text="Название" Foreground="{StaticResource MutedBrush}" Margin="0,14,0,4"/>
+            <TextBox x:Name="TitleBox" Style="{StaticResource FlatBox}" Padding="10,8" FontSize="14"/>
 
-        <Grid Margin="0,0,0,10">
-            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
-            <StackPanel>
-                <TextBlock Text="Папка"/>
-                <ComboBox x:Name="FolderBox" Margin="0,4,0,0" DisplayMemberPath="Name"/>
+            <TextBlock Text="Заметка" Foreground="{StaticResource MutedBrush}" Margin="0,12,0,4"/>
+            <TextBox x:Name="NoteBox" Style="{StaticResource FlatBox}" Padding="10,8" Height="64"
+                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+
+            <TextBlock Text="Папка" Foreground="{StaticResource MutedBrush}" Margin="0,12,0,6"/>
+            <WrapPanel x:Name="FolderPanel"/>
+
+            <TextBlock Text="Приоритет" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,6"/>
+            <WrapPanel x:Name="PriorityPanel"/>
+
+            <TextBlock Text="Срок — в это время сработает напоминание" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,6"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition Width="84"/></Grid.ColumnDefinitions>
+                <Grid>
+                    <TextBox x:Name="DueDate" Style="{StaticResource FlatBox}" Padding="10,8" x:FieldModifier="private"/>
+                    <TextBlock Style="{StaticResource PlaceholderText}" Text="дд.мм.гггг" IsHitTestVisible="False" x:Name="DatePlaceholder"/>
+                </Grid>
+                <TextBox x:Name="DueTime" Grid.Column="2" Style="{StaticResource FlatBox}" Padding="10,8" Text="09:00" ToolTip="ЧЧ:ММ" HorizontalContentAlignment="Center"/>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <Button Content="Сегодня" Style="{StaticResource ChipButton}" Click="OnToday"/>
+                <Button Content="Завтра" Style="{StaticResource ChipButton}" Click="OnTomorrow"/>
+                <Button Content="Через неделю" Style="{StaticResource ChipButton}" Click="OnWeek"/>
+                <Button Content="Без срока" Style="{StaticResource ChipButton}" Click="OnClearDue"/>
             </StackPanel>
-            <StackPanel Grid.Column="2">
-                <TextBlock Text="Приоритет"/>
-                <ComboBox x:Name="PriorityBox" Margin="0,4,0,0"/>
+
+            <TextBlock Text="Повтор" Foreground="{StaticResource MutedBrush}" Margin="0,12,0,6"/>
+            <WrapPanel x:Name="RepeatPanel"/>
+
+            <CheckBox x:Name="TgBox" Margin="0,6,0,0" HorizontalAlignment="Left">
+                <TextBlock Text="Дублировать в Telegram" Margin="8,0,0,0" VerticalAlignment="Center"/>
+            </CheckBox>
+
+            <TextBlock x:Name="Error" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                <Button Content="Отмена" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" IsCancel="True" Click="OnCancel"/>
+                <Button Content="Сохранить" Style="{StaticResource PrimaryButton}" IsDefault="True" Click="OnSave"/>
             </StackPanel>
-        </Grid>
-
-        <TextBlock Text="Срок (напоминание сработает в это время)"/>
-        <Grid Margin="0,4,0,10">
-            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="70"/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <DatePicker x:Name="DueDate"/>
-            <TextBox x:Name="DueTime" Grid.Column="2" Padding="6" Text="09:00" ToolTip="ЧЧ:ММ"/>
-            <Button Grid.Column="4" Content="Убрать срок" Padding="8,4" Click="OnClearDue"/>
-        </Grid>
-
-        <TextBlock Text="Повтор"/>
-        <ComboBox x:Name="RepeatBox" Margin="0,4,0,8" DisplayMemberPath="Name"/>
-        <CheckBox x:Name="TgBox" Content="Дублировать в Telegram" Margin="0,2,0,8"/>
-        <TextBlock x:Name="Error" Foreground="#C42B1C" Margin="0,0,0,6" Visibility="Collapsed"/>
-
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="Сохранить" IsDefault="True" Padding="18,6" Margin="0,0,8,0" Click="OnSave"/>
-            <Button Content="Отмена" IsCancel="True" Padding="18,6"/>
         </StackPanel>
-    </StackPanel>
+    </Border>
 </Window>
