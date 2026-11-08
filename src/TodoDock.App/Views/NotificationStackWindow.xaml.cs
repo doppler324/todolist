@@ -11,7 +11,8 @@ namespace TodoDock.Views;
 /// <summary>Стопка карточек уведомлений в правом верхнем углу. Автоскрытия нет.</summary>
 public partial class NotificationStackWindow : Window
 {
-    private const double Margin_ = 12;
+    // Отступ сверху: ниже кнопок окна (свернуть/закрыть) у приложений на весь экран
+    private const double Margin_ = 52;
     private readonly NotificationService _svc;
     private readonly DispatcherTimer _fullscreenCheck = new() { Interval = TimeSpan.FromSeconds(10) };
     private double _drawerShift;
@@ -22,7 +23,7 @@ public partial class NotificationStackWindow : Window
         _svc = svc;
         InitializeComponent();
         Cards.ItemsSource = svc.Active;
-        MaxHeight = SystemParameters.WorkArea.Height - 40;
+        MaxHeight = SystemParameters.WorkArea.Height - Margin_ - 24;
         SourceInitialized += (_, _) => NativeMethods.MakeToolNoActivate(this);
         SizeChanged += (_, _) => Reposition();
         svc.Active.CollectionChanged += OnChanged;
