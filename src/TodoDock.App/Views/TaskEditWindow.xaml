@@ -4,6 +4,19 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
         Width="440" SizeToContent="Height" WindowStartupLocation="CenterScreen" Topmost="True"
         Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <Style x:Key="CalDay" TargetType="Button">
+            <Setter Property="Width" Value="32"/><Setter Property="Height" Value="32"/><Setter Property="Margin" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/><Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="b" CornerRadius="16" BorderThickness="1.5" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Opacity" Value="0.75"/></Trigger></ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+    </Window.Resources>
     <Border Margin="14" CornerRadius="12" Background="#FF202229" BorderBrush="#22FFFFFF" BorderThickness="1">
         <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.5"/></Border.Effect>
         <StackPanel Margin="20,14,20,18">
@@ -29,8 +42,25 @@
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition Width="84"/></Grid.ColumnDefinitions>
                 <Grid>
-                    <TextBox x:Name="DueDate" Style="{StaticResource FlatBox}" Padding="10,8" x:FieldModifier="private"/>
+                    <TextBox x:Name="DueDate" Style="{StaticResource FlatBox}" Padding="10,8,40,8" x:FieldModifier="private"/>
                     <TextBlock Style="{StaticResource PlaceholderText}" Text="дд.мм.гггг" IsHitTestVisible="False" x:Name="DatePlaceholder"/>
+                    <Button Content="📅" HorizontalAlignment="Right" Margin="0,0,4,2" Padding="6,2" FontSize="16"
+                            Style="{StaticResource GhostButton}" ToolTip="Выбрать дату в календаре" Click="OnOpenCalendar"/>
+                    <Popup x:Name="CalPopup" PlacementTarget="{Binding ElementName=DueDate}" Placement="Bottom" VerticalOffset="6"
+                           StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                        <Border Margin="10" Padding="12" Width="268" CornerRadius="12" Background="#FF2A2D36" BorderBrush="#33FFFFFF" BorderThickness="1">
+                            <Border.Effect><DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.5"/></Border.Effect>
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button DockPanel.Dock="Left" Content="‹" FontSize="20" Padding="10,0" Style="{StaticResource GhostButton}" Click="OnPrevMonth"/>
+                                    <Button DockPanel.Dock="Right" Content="›" FontSize="20" Padding="10,0" Style="{StaticResource GhostButton}" Click="OnNextMonth"/>
+                                    <TextBlock x:Name="CalTitle" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                </DockPanel>
+                                <UniformGrid x:Name="CalWeekdays" Columns="7" Margin="0,0,0,2"/>
+                                <UniformGrid x:Name="CalDays" Columns="7"/>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
                 </Grid>
                 <TextBox x:Name="DueTime" Grid.Column="2" Style="{StaticResource FlatBox}" Padding="10,8" Text="09:00" ToolTip="ЧЧ:ММ" HorizontalContentAlignment="Center"/>
             </Grid>

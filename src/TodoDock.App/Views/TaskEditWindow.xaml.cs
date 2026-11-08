@@ -49,6 +49,58 @@ public partial class TaskEditWindow : Window
 
     private static object Selected(Panel p) => p.Children.OfType<RadioButton>().First(r => r.IsChecked == true).Tag;
 
+    // ---------- Календарь ----------
+    private static readonly CultureInfo Ru = new("ru-RU");
+    private DateTime _viewMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+
+    private DateTime? CurrentDate() =>
+        DateTime.TryParseExact(DueDate.Text.Trim(), DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+
+    private void OnOpenCalendar(object sender, RoutedEventArgs e)
+    {
+        var d = CurrentDate() ?? DateTime.Today;
+        _viewMonth = new DateTime(d.Year, d.Month, 1);
+        if (CalWeekdays.Children.Count == 0)
+            foreach (var n in new[] { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" })
+                CalWeekdays.Children.Add(new TextBlock { Text = n, HorizontalAlignment = HorizontalAlignment.Center, FontSize = 11,
+                    Foreground = (System.Windows.Media.Brush)FindResource("MutedBrush") });
+        RenderCalendar();
+        CalPopup.IsOpen = true;
+    }
+
+    private void OnPrevMonth(object s, RoutedEventArgs e) { _viewMonth = _viewMonth.AddMonths(-1); RenderCalendar(); }
+    private void OnNextMonth(object s, RoutedEventArgs e) { _viewMonth = _viewMonth.AddMonths(1); RenderCalendar(); }
+
+    private void RenderCalendar()
+    {
+        var name = Ru.DateTimeFormat.MonthNames[_viewMonth.Month - 1];
+        CalTitle.Text = char.ToUpper(name[0]) + name[1..] + " " + _viewMonth.Year;
+        CalDays.Children.Clear();
+        var offset = ((int)_viewMonth.DayOfWeek + 6) % 7;      // неделя с понедельника
+        var selected = CurrentDate();
+        var accent = (System.Windows.Media.Brush)FindResource("AccentBrush");
+        var text = (System.Windows.Media.Brush)FindResource("TextBrush");
+        var muted = (System.Windows.Media.Brush)FindResource("MutedBrush");
+        for (var i = 0; i < 42; i++)
+        {
+            var day = _viewMonth.AddDays(i - offset);
+            var btn = new Button
+            {
+                Content = day.Day.ToString(), Style = (Style)FindResource("CalDay"), Tag = day,
+                Foreground = day.Month == _viewMonth.Month ? text : muted,
+            };
+            if (day.Date == DateTime.Today) btn.BorderBrush = accent;
+            if (selected?.Date == day.Date) { btn.Background = accent; btn.Foreground = System.Windows.Media.Brushes.White; }
+            btn.Click += (_, _) =>
+            {
+                DueDate.Text = ((DateTime)btn.Tag).ToString("dd.MM.yyyy");
+                if (string.IsNullOrWhiteSpace(DueTime.Text)) DueTime.Text = "09:00";
+                CalPopup.IsOpen = false;
+            };
+            CalDays.Children.Add(btn);
+        }
+    }
+
     private void OnDrag(object sender, MouseButtonEventArgs e) { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); }
     private void OnCancel(object sender, RoutedEventArgs e) => DialogResult = false;
 
