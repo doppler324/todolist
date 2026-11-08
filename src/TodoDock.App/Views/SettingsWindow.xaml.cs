@@ -44,10 +44,11 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            if (!System.IO.File.Exists(TelegramService.LogPath)) TelegramService.Log("журнал создан");
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(TelegramService.LogPath) { UseShellExecute = true });
+            var dir = System.IO.Path.GetDirectoryName(TelegramService.LogPath)!;
+            System.IO.Directory.CreateDirectory(dir);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dir) { UseShellExecute = true });
         }
-        catch (Exception ex) { Say(TestStatus, "Не удалось открыть журнал: " + ex.Message, false); }
+        catch (Exception ex) { Say(TestStatus, "Не удалось открыть папку журналов: " + ex.Message, false); }
     }
 
     private void OnDrag(object sender, System.Windows.Input.MouseButtonEventArgs e)

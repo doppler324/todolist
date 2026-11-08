@@ -31,17 +31,29 @@ public sealed class NotificationService : IDisposable
     {
         _timer.Stop();
         var now = DateTime.Now;
-        var fresh = _repo.Tick(now);
-        var current = _repo.GetActiveNotifications();
+        try
+        {
+            var fresh = _repo.Tick(now);
+            var current = _repo.GetActiveNotifications();
 
-        for (var i = Active.Count - 1; i >= 0; i--)
-            if (current.All(c => c.Id != Active[i].Id)) Active.RemoveAt(i);
-        foreach (var n in current)
-            if (Active.All(a => a.Id != n.Id)) Active.Add(n);
+            for (var i = Active.Count - 1; i >= 0; i--)
+                if (current.All(c => c.Id != Active[i].Id)) Active.RemoveAt(i);
+            foreach (var n in current)
+                if (Active.All(a => a.Id != n.Id)) Active.Add(n);
 
-        if (fresh.Count > 0) SystemSounds.Asterisk.Play();
-        _telegram?.Enqueue(fresh);
-        Schedule(now);
+            if (fresh.Count > 0) SystemSounds.Asterisk.Play();
+
+            // Telegram — отдельно: любая его ошибка не должна мешать показу карточек и работе планировщика.
+            try { _telegram?.Enqueue(fresh); }
+            catch (Exception ex) { AppLog.Error("Telegram.Enqueue", ex); }
+        }
+        catch (Exception ex) { AppLog.Error("Notifications.Refresh", ex); }
+        finally
+        {
+            // Таймер всегда перезапускается, иначе после одного сбоя уведомления перестали бы приходить.
+            try { Schedule(now); }
+            catch (Exception ex) { AppLog.Error("Notifications.Schedule", ex); _timer.Interval = TimeSpan.FromSeconds(30); _timer.Start(); }
+        }
     }
 
     private void Schedule(DateTime now)

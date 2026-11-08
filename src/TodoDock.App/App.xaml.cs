@@ -20,6 +20,9 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // Необработанная ошибка не должна молча убивать программу и останавливать уведомления.
+        DispatcherUnhandledException += (_, args) => { AppLog.Error("Unhandled", args.Exception); args.Handled = true; };
+        TaskScheduler.UnobservedTaskException += (_, args) => { AppLog.Error("UnobservedTask", args.Exception); args.SetObserved(); };
         _mutex = new Mutex(true, "TodoDock.SingleInstance", out var created);
         if (!created)
         {
