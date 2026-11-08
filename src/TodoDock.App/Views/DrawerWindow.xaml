@@ -79,10 +79,10 @@
                         <DataTemplate>
                             <StackPanel Margin="0,4">
                                 <Border Background="Transparent" Padding="6,7" CornerRadius="8" AllowDrop="True" Cursor="Hand"
-                                        MouseLeftButtonUp="OnFolderClick" Drop="OnDropOnFolder">
+                                        MouseLeftButtonDown="OnFolderDown" MouseLeftButtonUp="OnFolderClick" Drop="OnDropOnFolder">
                                     <Border.ContextMenu>
                                         <ContextMenu>
-                                            <MenuItem Header="Переименовать" Command="{Binding DataContext.RenameFolderStartCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                            <MenuItem Header="Переименовать" Click="OnRenameFolderMenu"/>
                                             <MenuItem Header="Удалить папку" Command="{Binding DataContext.DeleteFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
                                         </ContextMenu>
                                     </Border.ContextMenu>
@@ -95,14 +95,33 @@
                                         </TextBlock>
                                         <TextBlock Text="{Binding Icon}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding Count}" DockPanel.Dock="Right" Foreground="{StaticResource MutedBrush}" FontSize="12" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center">
-                                            <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsEditing}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                            </Style.Triggers></Style></TextBlock.Style>
-                                        </TextBlock>
-                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FlatBox}"
-                                                 Visibility="{Binding IsEditing, Converter={StaticResource B2V}}"
-                                                 IsVisibleChanged="OnEditBoxVisible" LostFocus="OnFolderEditLostFocus" KeyDown="OnFolderEditKey"/>
+                                        <!-- Название папки: обычный текст; при переименовании тот же элемент становится полем ввода -->
+                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"
+                                                 FontWeight="SemiBold" FontSize="15" CaretBrush="White"
+                                                 IsHitTestVisibleChanged="OnFolderEditHit" LostFocus="OnFolderEditLostFocus" KeyDown="OnFolderEditKey">
+                                            <TextBox.Style>
+                                                <Style TargetType="TextBox">
+                                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Padding" Value="0"/>
+                                                    <Setter Property="IsReadOnly" Value="True"/>
+                                                    <Setter Property="IsHitTestVisible" Value="False"/>
+                                                    <Setter Property="Focusable" Value="False"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                            <Setter Property="IsReadOnly" Value="False"/>
+                                                            <Setter Property="IsHitTestVisible" Value="True"/>
+                                                            <Setter Property="Focusable" Value="True"/>
+                                                            <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+                                                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                                            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                                            <Setter Property="Padding" Value="6,3"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBox.Style>
+                                        </TextBox>
                                     </DockPanel>
                                 </Border>
                                 <ItemsControl ItemsSource="{Binding Tasks}" ItemTemplate="{StaticResource TaskCard}"

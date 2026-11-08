@@ -103,17 +103,35 @@ public partial class DrawerWindow : Window
     }
 
     // ---------- Папки ----------
+    private void OnRenameFolderMenu(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is FolderVM { IsReal: true } f) f.IsEditing = true;
+    }
+
+    private bool _suppressUp;
+
+    private void OnFolderDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount != 2 || IsInside<TextBox>(e.OriginalSource) || IsInside<System.Windows.Controls.MenuItem>(e.OriginalSource)) return;
+        if (((FrameworkElement)sender).DataContext is not FolderVM { IsReal: true } f) return;
+        f.IsExpanded = !f.IsExpanded;     // первый клик уже свернул/развернул — возвращаем как было
+        f.IsEditing = true;               // двойной клик → переименование
+        _suppressUp = true;
+        e.Handled = true;
+    }
+
     private void OnFolderClick(object sender, MouseButtonEventArgs e)
     {
+        if (_suppressUp) { _suppressUp = false; return; }
         // клики внутри поля редактирования (и по меню) папку не сворачивают
         if (IsInside<TextBox>(e.OriginalSource) || IsInside<System.Windows.Controls.MenuItem>(e.OriginalSource)) return;
-        if (((FrameworkElement)sender).DataContext is not FolderVM f) return;
-        f.IsExpanded = !f.IsExpanded;
-        if (e.ClickCount == 2 && f.IsReal)      // двойной клик: вернуть сворачивание и начать переименование
-        {
-            f.IsExpanded = !f.IsExpanded;
-            f.IsEditing = true;
-        }
+        if (((FrameworkElement)sender).DataContext is FolderVM f) f.IsExpanded = !f.IsExpanded;
+    }
+
+    /// <summary>Поле названия стало редактируемым — ставим в него курсор и выделяем текст.</summary>
+    private void OnFolderEditHit(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true && sender is TextBox tb) { _editStarted = DateTime.UtcNow; FocusEditBox(tb); }
     }
 
     private void OnFolderEditKey(object sender, KeyEventArgs e)
