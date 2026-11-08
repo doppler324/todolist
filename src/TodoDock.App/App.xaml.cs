@@ -33,11 +33,11 @@ public partial class App : Application
         _repo = TodoRepository.OpenFile(dbPath);
         var vm = new MainViewModel(_repo);
         _telegram = new TelegramService(_repo);
-        _drawer = new DrawerWindow(vm, _telegram);
+        _notifications = new NotificationService(_repo, vm.Reload, _telegram);
+        _drawer = new DrawerWindow(vm, _telegram, _notifications);
         _handle = new HandleWindow(_drawer);
         _handle.Show();
 
-        _notifications = new NotificationService(_repo, vm.Reload, _telegram);
         _stack = new NotificationStackWindow(_notifications);
         _drawer.OpenChanged += _stack.SetDrawerOpen;
         _notifications.Active.CollectionChanged += (_, _) => _handle.SetBadge(_notifications.Active.Count);

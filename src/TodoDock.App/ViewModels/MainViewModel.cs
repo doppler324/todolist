@@ -12,6 +12,8 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly TodoRepository _repo;
 
     public ObservableCollection<FolderVM> Folders { get; } = new();
+    /// <summary>Вкладка «Сегодня»: открытые задачи со сроком на сегодня или просроченные.</summary>
+    public ObservableCollection<TaskVM> TodayTasks { get; } = new();
     [ObservableProperty] private string _quickText = "";
     [ObservableProperty] private string _newFolderName = "";
 
@@ -24,6 +26,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var expanded = Folders.ToDictionary(f => f.Id ?? -1, f => f.IsExpanded);
         Folders.Clear();
+        TodayTasks.Clear();
         var tasks = _repo.GetTasks();
         var all = new List<FolderVM> { new(null, this) };
         all.AddRange(_repo.GetFolders().Select(f => new FolderVM(f, this)));
@@ -34,6 +37,10 @@ public sealed partial class MainViewModel : ObservableObject
             // «Без папки» показываем только когда в ней что-то есть
             if (f.IsReal || f.Count > 0) Folders.Add(f);
         }
+        foreach (var t in Folders.SelectMany(f => f.Tasks)
+                     .Where(t => t.Item.DueAt is { } d && d.Date <= DateTime.Today)
+                     .OrderBy(t => t.Item.DueAt))
+            TodayTasks.Add(t);
         Changed?.Invoke();
     }
 

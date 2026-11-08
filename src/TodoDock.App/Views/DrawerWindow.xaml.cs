@@ -3,6 +3,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Input;
 using System.Windows.Controls;
 using TodoDock.Services;
+using TodoDock.Core;
 using TodoDock.ViewModels;
 
 namespace TodoDock.Views;
@@ -18,12 +19,18 @@ public partial class DrawerWindow : Window
 
     private readonly TelegramService _telegram;
 
-    public DrawerWindow(MainViewModel vm, TelegramService telegram)
+    private readonly NotificationService _notifications;
+
+    public DrawerWindow(MainViewModel vm, TelegramService telegram, NotificationService notifications)
     {
+        _notifications = notifications;
         _vm = vm;
         _telegram = telegram;
         InitializeComponent();
         DataContext = vm;
+        NotifList.ItemsSource = notifications.Active;
+        notifications.Active.CollectionChanged += (_, _) => UpdateNotifTab();
+        UpdateNotifTab();
         var area = SystemParameters.WorkArea;
         Top = area.Top;
         Height = area.Height;
@@ -66,6 +73,33 @@ public partial class DrawerWindow : Window
     private void OnDeactivated(object? sender, EventArgs e)
     {
         if (PinButton.IsChecked != true && !_dialogOpen) Close_();
+    }
+
+    // ---------- Вкладки ----------
+    private void UpdateNotifTab()
+    {
+        var n = _notifications.Active.Count;
+        TabNotifs.Content = n > 0 ? $"Уведомления ({n})" : "Уведомления";
+        NotifEmpty.Visibility = n > 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void OnTab(object sender, RoutedEventArgs e)
+    {
+        if (PageTasks == null) return; // событие во время InitializeComponent
+        var tab = int.Parse((string)((FrameworkElement)sender).Tag);
+        PageTasks.Visibility = tab == 0 ? Visibility.Visible : Visibility.Collapsed;
+        PageNotifs.Visibility = tab == 1 ? Visibility.Visible : Visibility.Collapsed;
+        PageToday.Visibility = tab == 2 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private static AppNotification? Notif(object sender) => (sender as FrameworkElement)?.DataContext as AppNotification;
+    private void OnNotifClose(object sender, RoutedEventArgs e) { if (Notif(sender) is { } n) _notifications.Dismiss(n); }
+    private void OnNotifDone(object sender, RoutedEventArgs e) { if (Notif(sender) is { } n) _notifications.Done(n); }
+    private void OnNotifSnooze(object sender, RoutedEventArgs e)
+    {
+        if (Notif(sender) is not { } n) return;
+        var tag = (string)((FrameworkElement)sender).Tag;
+        _notifications.Snooze(n, tag == "tomorrow" ? DateTime.Today.AddDays(1).AddHours(9) : DateTime.Now.AddMinutes(int.Parse(tag)));
     }
 
     // ---------- Папки ----------
